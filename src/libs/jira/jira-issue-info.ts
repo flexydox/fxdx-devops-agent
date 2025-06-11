@@ -1,5 +1,5 @@
-import { adfToMarkdown } from './adf-to-markdown.js';
-import { IssueInfo } from './types/issue-info.js';
+import { adfToMarkdown } from '../adf-to-markdown.js';
+import { IssueInfo } from '../../types/issue-info.js';
 
 export interface JiraIssue {
   id: string;
@@ -108,16 +108,11 @@ async function fetchIssue(issueNumber: string): Promise<IssueInfo> {
   return issueInfo;
 }
 
-export async function getIssues(issuesString: string): Promise<IssueInfo[]> {
-  const issuesNumbers = issuesString
-    .split(',')
-    .map((issue) => issue.trim())
-    .filter((issue) => issue.trim() !== '');
-
-  if (issuesNumbers.length === 0) {
+export async function getIssues(issues: string[]): Promise<IssueInfo[]> {
+  if (issues.length === 0) {
     return [];
   }
-  const issueInfos = await Promise.all(issuesNumbers.map((issueNumber) => fetchIssue(issueNumber)));
+  const issueInfos = await Promise.all(issues.map((issueNumber) => fetchIssue(issueNumber)));
 
   return issueInfos;
 }

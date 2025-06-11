@@ -1,6 +1,6 @@
 import { OpenAI } from 'openai';
-import { IssueInfo } from './types/issue-info.js';
-import { IssueValidationResult } from './types/issue-validation-result.js';
+import { IssueInfo } from '../../types/issue-info.js';
+import { IssueValidationResult } from '../../types/issue-validation-result.js';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 

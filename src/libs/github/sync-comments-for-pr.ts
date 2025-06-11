@@ -1,4 +1,4 @@
-import { IssueValidationResult } from './types/issue-validation-result.js';
+import { IssueValidationResult } from '../../types/issue-validation-result.js';
 import github from '@actions/github';
 
 interface Comment {

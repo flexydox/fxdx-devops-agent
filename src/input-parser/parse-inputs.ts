@@ -14,6 +14,7 @@ export function parseInputs(): ParsedInputs {
   if (argsString) {
     try {
       args = JSON.parse(argsString);
+      core.debug(`Parsed args: ${JSON.stringify(args)}`);
     } catch {
       core.setFailed('Failed to parse args as JSON');
     }
