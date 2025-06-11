@@ -42,6 +42,7 @@ export class IssuePRCommenter extends BaseCommand<IssuePRCommenterArgs> {
       return;
     }
 
+    core.debug(`Fetching PR info for PR number: ${prNumber}`);
     const prInfo = await getPRInfo(prNumber);
     core.debug(`PR title: ${prInfo.title}`);
 

@@ -1,4 +1,5 @@
 import github from '@actions/github';
+import * as core from '@actions/core';
 
 interface PRInfo {
   id: number;
@@ -20,5 +21,11 @@ export async function getPRInfo(prNumber: string): Promise<PRInfo> {
     repo,
     pull_number: parseInt(prNumber, 10)
   });
+
+  if (response.status !== 200) {
+    core.debug(`Response: ${JSON.stringify(response.data)}`);
+    throw new Error(`Failed to fetch pull request #${prNumber}. Status: ${response.status}`);
+  }
+
   return response.data satisfies PRInfo;
 }
