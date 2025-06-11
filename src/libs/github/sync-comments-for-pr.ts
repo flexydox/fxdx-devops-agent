@@ -1,5 +1,6 @@
 import { IssueValidationResult } from '../../types/issue-validation-result.js';
 import github from '@actions/github';
+import * as core from '@actions/core';
 
 interface Comment {
   id: number;
@@ -24,6 +25,11 @@ async function getPullRequestComments(prNumber: string): Promise<Comment[]> {
     repo,
     issue_number: parseInt(prNumber, 10)
   });
+  if (response.status !== 200) {
+    throw new Error(`Failed to fetch comments: ${response.status} for PR #${prNumber}.`);
+
+    core.debug(`Response: ${JSON.stringify(response.data)}`);
+  }
   return response.data satisfies Comment[];
 }
 
