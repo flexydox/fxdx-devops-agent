@@ -1,7 +1,6 @@
 # fxdx-devops-agent
 
-Get issue title and description from issue number. Evaluate title and description and create a PR comment with the
-result.
+Several GitHub Actions to help with CI/CD automation.
 
 ## Initial Setup
 
