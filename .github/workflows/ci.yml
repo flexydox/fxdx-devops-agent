@@ -1,0 +1,78 @@
+name: Continuous Integration
+
+on:
+  pull_request:
+  issue_comment:
+    types:
+      - created
+      - edited
+
+  push:
+    branches:
+      - main
+
+permissions:
+  pull-requests: write
+  issues: write
+  contents: read
+
+jobs:
+  test-typescript:
+    name: TypeScript Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        id: setup-node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Install Dependencies
+        id: npm-ci
+        run: npm ci
+
+      - name: Check Format
+        id: npm-format-check
+        run: npm run format:check
+
+      - name: Lint
+        id: npm-lint
+        run: npm run lint
+
+  test-action:
+    if: contains(github.actor , '[bot]') == false
+    name: GitHub Actions Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@v4
+
+      - name: Check Secret Availability
+        run: |
+          if [ -z "${{ secrets.ATLASSIAN_API_USERNAME }}" ]; then
+            echo "🚨 Secret NOT available!"
+            exit 1
+          else
+            echo "✅ Secret is available (value is hidden)"
+          fi
+
+      - name: Test Local Action
+        id: test-action
+        uses: ./
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ATLASSIAN_API_BASE_URL: ${{ vars.ATLASSIAN_API_BASE_URL }}
+          ATLASSIAN_API_TOKEN: ${{ secrets.ATLASSIAN_API_TOKEN }}
+          ATLASSIAN_API_USERNAME: ${{ secrets.ATLASSIAN_API_USERNAME }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        with:
+          issues: 'FXDX-1,FXDX-2'
+          pr-number: ${{ github.event.pull_request.number }}
