@@ -1,9 +1,11 @@
 import * as core from '@actions/core';
-import { getIssues } from '../../libs/jira/jira-issue-info.js';
+import { getIssues } from '../../libs/jira/api/index.js';
 import { validateIssues } from '../../libs/ai/validate-issues.js';
 import { syncCommentsForPR } from '../../libs/github/sync-comments-for-pr.js';
 import { getPRInfo } from '../../libs/github/get-pr-info.js';
 import { BaseCommand } from '../base-command.js';
+import { mapIssueInfo } from '../../libs/jira/issue-info-mapper.js';
+import { parseIssues } from '../../input-parser/parse-inputs.js';
 
 export interface IssuePRCommenterArgs {
   issues?: string;
@@ -12,27 +14,16 @@ export interface IssuePRCommenterArgs {
   failWhenNoIssues?: boolean | string | number;
 }
 
-function parseIssuesString(issuesString: string): string[] {
-  return issuesString
-    .split(',')
-    .map((issue) => issue.trim())
-    .filter((issue) => issue.length > 0);
-}
-
 export class IssuePRCommenter extends BaseCommand<IssuePRCommenterArgs> {
   constructor() {
     super('jira', 'issue-pr-commenter');
   }
 
   async execute(args: IssuePRCommenterArgs): Promise<void> {
-    const issuesString = typeof args.issues === 'string' ? args.issues : '';
-    const issuesArray = Array.isArray(args.issues) ? args.issues : [];
     const prNumber = args.prNumber ?? '';
     const prTitleRegex = typeof args.prTitleRegex === 'string' ? args.prTitleRegex : '.*';
     const failWhenNoIssues =
       args.failWhenNoIssues === true || args.failWhenNoIssues === 'true' || args.failWhenNoIssues === 1;
-    core.debug(`issuesString: ${issuesString}`);
-    core.debug(`issuesArray: ${JSON.stringify(issuesArray)}`);
     core.debug(`prNumber: ${prNumber}`);
     core.debug(`prTitleRegex: ${prTitleRegex}`);
     core.debug(`failWhenNoIssues: ${failWhenNoIssues}`);
@@ -55,7 +46,7 @@ export class IssuePRCommenter extends BaseCommand<IssuePRCommenterArgs> {
       return;
     }
 
-    const issuesNumbers = issuesArray.length > 0 ? issuesArray : parseIssuesString(issuesString);
+    const issuesNumbers = parseIssues(args.issues);
     if (issuesNumbers.length === 0) {
       core.info('Issues are not set, skipping validation.');
       if (failWhenNoIssues) {
@@ -65,7 +56,11 @@ export class IssuePRCommenter extends BaseCommand<IssuePRCommenterArgs> {
       return;
     }
 
-    const issues = await getIssues(issuesNumbers);
+    const jiraIssues = await getIssues(issuesNumbers, true, {
+      fields: 'summary,description,issuetype,status,labels,components,parent'
+    });
+
+    const issues = jiraIssues.map(mapIssueInfo);
 
     if (!issues || issues.length === 0) {
       core.info('No issues found, skipping validation.');

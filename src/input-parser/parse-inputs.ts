@@ -21,3 +21,20 @@ export function parseInputs(): ParsedInputs {
   }
   return { command, subcommand, args };
 }
+
+function parseIssuesString(issuesString: string): string[] {
+  return issuesString
+    .split(',')
+    .map((issue) => issue.trim())
+    .filter((issue) => issue.length > 0);
+}
+
+export function parseIssues(issues: string[] | string | undefined | null): string[] {
+  const issuesString = typeof issues === 'string' ? issues : '';
+  const issuesArray = Array.isArray(issues) ? issues : [];
+  core.debug(`issuesString: ${issuesString}`);
+  core.debug(`issuesArray: ${JSON.stringify(issuesArray)}`);
+
+  const issuesNumbers = issuesArray.length > 0 ? issuesArray : parseIssuesString(issuesString);
+  return issuesNumbers;
+}
