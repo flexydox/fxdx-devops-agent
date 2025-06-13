@@ -1,14 +1,15 @@
-// Type definitions for ADF nodes
-type MarkType = 'strong' | 'em' | 'code' | 'link';
+import mdConvert, { ADFNode, MarkType } from 'md-to-adf';
 
-interface ADFNode {
-  type: string;
-  attrs?: Record<string, unknown>;
-  content?: ADFNode[];
-  text?: string;
-  marks?: { type: MarkType; attrs?: unknown }[];
+export function markdownToAdf(markdown: string): ADFNode {
+  if (!markdown) return { type: 'doc', content: [] };
+  return mdConvert(markdown);
 }
 
+/**
+ * Converts an ADF (Atlassian Document Format) node to Markdown.
+ * @param {ADFNode} node - The ADF node to convert.
+ * @returns {string} - The converted Markdown string.
+ */
 export function adfToMarkdown(node: ADFNode): string {
   if (!node || typeof node !== 'object') return '';
 

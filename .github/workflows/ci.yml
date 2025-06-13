@@ -74,5 +74,7 @@ jobs:
           ATLASSIAN_API_USERNAME: ${{ secrets.ATLASSIAN_API_USERNAME }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         with:
-          issues: 'FXDX-1,FXDX-2'
-          pr-number: ${{ github.event.pull_request.number }}
+          command: version
+          subcommand: parse
+          args: '{"version": "1.0.0"}'
+      -

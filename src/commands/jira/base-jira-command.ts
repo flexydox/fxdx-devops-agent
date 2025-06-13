@@ -1,5 +1,6 @@
-import { getIssues } from '../libs/jira/api/index.js';
-import { CommandArgs } from '../types/command-types.js';
+import { getIssues } from '../../libs/jira/api/index.js';
+import { CommandArgs } from '../../types/command-types.js';
+import { BaseCommand } from '../base-command.js';
 
 export interface EachIssueOptions {
   applyToParent?: boolean;
@@ -7,17 +8,7 @@ export interface EachIssueOptions {
   callback?: (issueKey: string) => Promise<void>;
 }
 
-export abstract class BaseCommand<TArgs extends CommandArgs> {
-  command: string;
-  subcommand: string;
-
-  constructor(command: string, subcommand: string) {
-    this.command = command;
-    this.subcommand = subcommand;
-  }
-
-  abstract execute(args: TArgs): Promise<void>;
-
+export abstract class BaseJiraCommand<TArgs extends CommandArgs> extends BaseCommand<TArgs> {
   async eachIssue(issues: string[], options: EachIssueOptions): Promise<void> {
     const { applyToParent = true, applyToSubtasks = false, callback = async () => {} } = options;
     const jiraIssues = await getIssues(issues, {

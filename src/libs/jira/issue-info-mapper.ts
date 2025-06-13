@@ -1,5 +1,5 @@
 import { IssueInfo } from '../../types/issue-info.js';
-import { adfToMarkdown } from '../adf-to-markdown.js';
+import { adfToMarkdown } from './adf-converter.js';
 import { issueTypeMapper } from './api/issue-type-mapper.js';
 import { JiraIssue } from './types/jira-issue.js';
 

@@ -7,19 +7,26 @@ import { BaseCommand } from '../base-command.js';
 import { mapIssueInfo } from '../../libs/jira/issue-info-mapper.js';
 import { parseIssues } from '../../input-parser/parse-inputs.js';
 
-export interface IssuePRCommenterArgs {
+export interface GithubPRCommenterArgs {
   issues?: string;
   prNumber?: string;
   prTitleRegex?: string;
   failWhenNoIssues?: boolean | string | number;
+  applyToParent?: boolean;
+  applyToSubtasks?: boolean;
 }
 
-export class IssuePRCommenter extends BaseCommand<IssuePRCommenterArgs> {
+/**
+ * Command to comment on a pull request with Jira issue validation.
+ * It fetches the PR information, validates the issues against the PR title and description,
+ * and syncs (create or update) comments based on the validation results.
+ */
+export class GithubPRCommenter extends BaseCommand<GithubPRCommenterArgs> {
   constructor() {
-    super('jira', 'issue-pr-commenter');
+    super('github', 'pr-commenter');
   }
 
-  async execute(args: IssuePRCommenterArgs): Promise<void> {
+  async execute(args: GithubPRCommenterArgs): Promise<void> {
     const prNumber = args.prNumber ?? '';
     const prTitleRegex = typeof args.prTitleRegex === 'string' ? args.prTitleRegex : '.*';
     const failWhenNoIssues =
@@ -56,8 +63,12 @@ export class IssuePRCommenter extends BaseCommand<IssuePRCommenterArgs> {
       return;
     }
 
-    const jiraIssues = await getIssues(issuesNumbers, true, {
-      fields: 'summary,description,issuetype,status,labels,components,parent'
+    const jiraIssues = await getIssues(issuesNumbers, {
+      loadParent: args.applyToParent,
+      skipSubtasks: !args.applyToSubtasks,
+      searchParams: {
+        fields: 'summary,description,issuetype,status,labels,components,parent'
+      }
     });
 
     const issues = jiraIssues.map(mapIssueInfo);
