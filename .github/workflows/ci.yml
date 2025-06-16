@@ -79,9 +79,9 @@ jobs:
           args: '{"version": "1.0.0"}'
       - name: Check Action Output
         run: |
-          if [ -z "${{ steps.test-action.outputs.version }}" ]; then
-            echo "🚨 Action output 'version' is empty!"
+          if [ -z "${{ steps.test-action.outputs.major }}" ]; then
+            echo "🚨 Action output 'major' is empty!"
             exit 1
           else
-            echo "✅ Action output 'version': ${{ steps.test-action.outputs.version }}"
+            echo "✅ Action output 'major': ${{ steps.test-action.outputs.major }}"
           fi
