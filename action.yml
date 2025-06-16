@@ -21,11 +21,9 @@ inputs:
       For 'git':
         - 'get-diff-data': Gets the git diff data for a pull request.
   args:
-    description:
-      "JSON string with arguments for the command / subcommand.\nFor the full list of arguments associated with each
-      command, \nplease refer to the documentation. \n"
+    description: "JSON string with arguments for the command / subcommand.\nFor the full list of arguments associated with each command, \nplease refer to the documentation. \n"
     required: false
     default: ''
 runs:
   using: node20
-  main: dist/index.js
+  main: dist/index.cjs
