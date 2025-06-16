@@ -27,14 +27,16 @@ A powerful GitHub Action for automating your development workflow with Jira, Git
 
 ## Table of Contents
 
-- [DevOps Agent ](#devops-agent--)
+- [DevOps Agent !\[Marketplace\](https://img.shields.i### Environment Variables - Github related](#devops-agent-marketplacehttpsimgshieldsi-environment-variables---github-related)
+  - [Environment Variables - Jira related](#environment-variables---jira-related)
+  - [Environment Variables - AI related](#environment-variables---ai-related)
   - [Table of Contents](#table-of-contents)
   - [Features](#features)
   - [Commands \& Arguments](#commands--arguments)
     - [~Common Arguments](#common-arguments)
     - [Environment Variables - Github related](#environment-variables---github-related)
-    - [Environment Variables - Jira related](#environment-variables---jira-related)
-    - [Environment Variables - AI related](#environment-variables---ai-related)
+    - [Environment Variables - Jira related](#environment-variables---jira-related-1)
+    - [Environment Variables - AI related](#environment-variables---ai-related-1)
     - [Jira Commands](#jira-commands)
     - [GitHub Commands](#github-commands)
     - [Version Commands](#version-commands)
@@ -46,6 +48,9 @@ A powerful GitHub Action for automating your development workflow with Jira, Git
     - [Get PR diff data](#get-pr-diff-data)
     - [Parse a version string](#parse-a-version-string)
     - [Get commit information](#get-commit-information)
+    - [Assign Jira issues to a release](#assign-jira-issues-to-a-release)
+    - [Update Jira issue labels](#update-jira-issue-labels)
+    - [Complete workflow example](#complete-workflow-example)
   - [Development](#development)
   - [License](#license)
 
@@ -239,6 +244,7 @@ steps:
   uses: flexydox/fxdx-devops-agent@v1
   env:
     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    GITHUB_REPOSITORY: ${{ github.repository }} # Optional, defaults to current repo
   with:
     command: github
     subcommand: commit-info
