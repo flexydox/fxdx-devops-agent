@@ -1,109 +1,185 @@
-# fxdx-devops-agent
+# DevOps Agent ![Marketplace](https://img.shields.io/badge/Marketplace-GitHub%20Actions-blue?logo=github) ![License](https://img.shields.io/github/license/flexydox/fxdx-devops-agent)
 
-Several GitHub Actions to help with CI/CD automation.
+A powerful GitHub Action for automating your development workflow with Jira, GitHub, and versioning operations. Supports advanced PR validation, Jira issue management, and more.
 
-## Initial Setup
+---
 
-1. :hammer_and_wrench: Install the dependencies
+## Table of Contents
+- [DevOps Agent  ](#devops-agent--)
+  - [Table of Contents](#table-of-contents)
+  - [Features](#features)
+  - [Commands \& Arguments](#commands--arguments)
+    - [~Common Arguments](#common-arguments)
+    - [Jira Commands](#jira-commands)
+    - [GitHub Commands](#github-commands)
+    - [Version Commands](#version-commands)
+  - [Usage](#usage)
+  - [Examples](#examples)
+    - [Add a comment to Jira issues](#add-a-comment-to-jira-issues)
+    - [Update Jira status for issues](#update-jira-status-for-issues)
+    - [Validate PR with Jira issues and comment](#validate-pr-with-jira-issues-and-comment)
+    - [Get PR diff data](#get-pr-diff-data)
+    - [Parse a version string](#parse-a-version-string)
+  - [Development](#development)
+  - [License](#license)
 
+---
+
+## Features
+- Validate and synchronize Jira issues on PRs
+- Update Jira issue status, labels, comments, and releases from workflows
+- Parse semantic versions and extract commit data from PRs
+- Modular command/subcommand structure for extensibility
+
+---
+
+## Commands & Arguments
+
+### ~Common Arguments
+- `applyToParent` (bool, optional): Apply operation to parent issues, if actual issue is a subtask.
+- `applyToSubtasks` (bool, optional): Apply operation to subtask issue types, if actual issue is a subtask.
+- `failWhenNoIssues` (bool, optional): Fail the action if no issues are found.
+- issues (string): Comma-separated list of Jira issues (e.g., "PROJ-1,PROJ-2").
+- prTitleRegex (string, optional): Regex to match PR titles for issue validation.
+
+### Jira Commands
+
+| Subcommand         | Arguments                                                                                      | Description                                            | Example | Outputs |
+|--------------------|-----------------------------------------------------------------------------------------------|--------------------------------------------------------|---------|---------|
+| `add-comment`      | `issues` (string), `comment` (string), `applyToParent` (bool, optional), `applyToSubtasks` (bool, optional) | Add comment to Jira issues.                            | `args: '{ "issues": "PROJ-1,PROJ-2", "comment": "Deployed to staging." }'` | None |
+| `update-status`    | `issues` (string), `targetStatus` (string), `comment` (string, optional), `applyToParent` (bool, optional), `applyToSubtasks` (bool, optional) | Update Jira issue status and add an optional comment.  | `args: '{ "issues": "PROJ-123", "targetStatus": "Done", "comment": "Automatically transitioned via CI." }'` | None |
+| `assign-to-release`| `issues` (string), `version` (string), `applyToParent` (bool, optional), `applyToSubtasks` (bool, optional) | Assign Jira issues to a release version.               | `args: '{ "issues": "PROJ-1,PROJ-2", "version": "1.0.0" }'` | None |
+| `update-labels`    | `issues` (string), `labelsToAdd` (string), `labelsToRemove` (string), `applyToParent` (bool, optional), `applyToSubtasks` (bool, optional) | Add/remove labels on Jira issues.                      | `args: '{ "issues": "PROJ-1", "labelsToAdd": "qa,prod", "labelsToRemove": "wip" }'` | None |
+
+### GitHub Commands
+
+| Subcommand         | Arguments                                                                                      | Description                                            | Example | Outputs |
+|--------------------|-----------------------------------------------------------------------------------------------|--------------------------------------------------------|---------|---------|
+| `pr-commenter`     | `issues` (string), `prNumber` (string), `prTitleRegex` (string, optional), `failWhenNoIssues` (bool, optional), `applyToParent` (bool, optional), `applyToSubtasks` (bool, optional) | Validate Jira issues on a PR and synchronize comments. | `args: '{ "issues": "PROJ-456", "prNumber": "${{ github.event.pull_request.number }}", "failWhenNoIssues": true }'` | None |
+| `get-diff-data`    | `prNumber` (string), `issuePattern` (string, optional), `dataSeparator` (string, optional)    | Extract commit messages, files, and referenced issues. | `args: '{ "prNumber": "${{ github.event.pull_request.number }}" }'` | `commit-messages`, `files`, `issues` |
+
+### Version Commands
+
+| Subcommand         | Arguments                                                                                      | Description                                            | Example | Outputs |
+|--------------------|-----------------------------------------------------------------------------------------------|--------------------------------------------------------|---------|---------|
+| `parse`            | `version` (string)                                                                            | Parse and output the major, minor, patch, pre fields.  | `args: '{ "version": "1.2.3-beta" }'` | `major`, `minor`, `patch`, `pre` |
+
+---
+
+## Usage
+
+Add this action to your workflow:
+
+```yaml
+steps:
+  - name: Checkout repository
+    uses: actions/checkout@v4
+
+  - name: Run DevOps Agent
+    uses: flexydox/fxdx-devops-agent@v1
+    with:
+      command: <command>
+      subcommand: <subcommand>
+      args: '{ "key": "value", ... }' # JSON string with arguments for the operation
+```
+
+- **command**: One of `jira`, `github`, `version`
+- **subcommand**: See table above
+- **args**: JSON string with arguments for the command/subcommand
+
+---
+
+## Examples
+
+### Add a comment to Jira issues
+```yaml
+- name: Add Jira comment
+  uses: flexydox/fxdx-devops-agent@v1
+  with:
+    command: jira
+    subcommand: add-comment
+    args: '{ "issues": "PROJ-1,PROJ-2", "comment": "Deployed to staging." }'
+```
+
+### Update Jira status for issues
+```yaml
+- name: Update Jira status
+  uses: flexydox/fxdx-devops-agent@v1
+  with:
+    command: jira
+    subcommand: update-status
+    args: '{ "issues": "PROJ-123", "targetStatus": "Done", "comment": "Automatically transitioned via CI." }'
+```
+
+### Validate PR with Jira issues and comment
+```yaml
+- name: PR Jira Validator
+  id: pr-jira-validator
+  uses: flexydox/fxdx-devops-agent@v1
+  with:
+    command: github
+    subcommand: pr-commenter
+    args: '{ "issues": "PROJ-456", "prNumber": "${{ github.event.pull_request.number }}", "failWhenNoIssues": true }'
+- name: Echo PR Jira Validator outputs
+  run: |
+    echo "Commented: ${{ steps.pr-jira-validator.outputs.commented }}"
+    echo "Issues Found: ${{ steps.pr-jira-validator.outputs.issuesFound }}"
+```
+
+### Get PR diff data
+```yaml
+- name: Get PR Diff Data
+  id: pr-diff
+  uses: flexydox/fxdx-devops-agent@v1
+  with:
+    command: github
+    subcommand: get-diff-data
+    args: '{ "prNumber": "${{ github.event.pull_request.number }}" }'
+- name: Echo PR Diff Data outputs
+  run: |
+    echo "Commit Messages: ${{ steps.pr-diff.outputs.commit-messages }}"
+    echo "Files: ${{ steps.pr-diff.outputs.files }}"
+    echo "Issues: ${{ steps.pr-diff.outputs.issues }}"
+```
+
+### Parse a version string
+```yaml
+- name: Parse version
+  id: parse-version
+  uses: flexydox/fxdx-devops-agent@v1
+  with:
+    command: version
+    subcommand: parse
+    args: '{ "version": "1.2.3-beta" }'
+- name: Echo version outputs
+  run: |
+    echo "Major: ${{ steps.parse-version.outputs.major }}"
+    echo "Minor: ${{ steps.parse-version.outputs.minor }}"
+    echo "Patch: ${{ steps.parse-version.outputs.patch }}"
+    echo "Pre-release: ${{ steps.parse-version.outputs.pre }}"
+```
+
+---
+
+## Development
+
+1. **Install dependencies**
    ```bash
    npm install
    ```
-
-2. :building_construction: Package the TypeScript for distribution
-
+2. **Build**
    ```bash
    npm run bundle
    ```
-
-3. :white_check_mark: Run the tests
-
+3. **Test**
    ```bash
    npm test
    ```
 
-4. (Optional) Test your action locally
+For local testing, see `.env.example` and use [`@github/local-action`](https://github.com/github/local-action).
 
-   The [`@github/local-action`](https://github.com/github/local-action) utility can be used to test your action locally.
-   It is a simple command-line tool that "stubs" (or simulates) the GitHub Actions Toolkit. This way, you can run your
-   TypeScript action locally without having to commit and push your changes to a repository.
+---
 
-   The `local-action` utility can be run in the following ways:
+## License
 
-   - Visual Studio Code Debugger
-
-     Make sure to review and, if needed, update [`.vscode/launch.json`](./.vscode/launch.json)
-
-   - Terminal/Command Prompt
-
-     ```bash
-     # npx @github/local action <action-yaml-path> <entrypoint> <dotenv-file>
-     npx @github/local-action . src/main.ts .env
-     ```
-
-   You can provide a `.env` file to the `local-action` CLI to set environment variables used by the GitHub Actions
-   Toolkit. For example, setting inputs and event payload data used by your action. For more information, see the
-   example file, [`.env.example`](./.env.example), and the
-   [GitHub Actions Documentation](https://docs.github.com/en/actions/learn-github-actions/variables#default-environment-variables).
-
-Your action is now published! :rocket:
-
-## Validate the Action
-
-You can now validate the action by referencing it in a workflow file. For example,
-[`ci.yml`](./.github/workflows/ci.yml) demonstrates how to reference an action in the same repository.
-
-```yaml
-steps:
-  - name: Checkout
-    id: checkout
-    uses: actions/checkout@v4
-
-  - name: Test Local Action
-    id: test-action
-    uses: ./
-    with: ...
-```
-
-For example workflow runs, check out the [Actions tab](https://github.com/actions/typescript-action/actions)! :rocket:
-
-## Usage
-
-After testing, you can create version tag(s) that developers can use to reference different stable versions of your
-action. For more information, see [Versioning](https://github.com/actions/toolkit/blob/master/docs/action-versioning.md)
-in the GitHub Actions toolkit.
-
-To include the action in a workflow in another repository, you can use the `uses` syntax with the `@` symbol to
-reference a specific branch, tag, or commit hash.
-
-```yaml
-steps:
-  - name: Checkout
-    id: checkout
-    uses: actions/checkout@v4
-
-  - name: Test Local Action
-    id: test-action
-    uses: actions/typescript-action@v1 # Commit with the `v1` tag
-    with: ...
-```
-
-## Publishing a New Release
-
-This project includes a helper script, [`script/release`](./script/release) designed to streamline the process of
-tagging and pushing new releases for GitHub Actions.
-
-GitHub Actions allows users to select a specific version of the action to use, based on release tags. This script
-simplifies this process by performing the following steps:
-
-1. **Retrieving the latest release tag:** The script starts by fetching the most recent SemVer release tag of the
-   current branch, by looking at the local data available in your repository.
-1. **Prompting for a new release tag:** The user is then prompted to enter a new release tag. To assist with this, the
-   script displays the tag retrieved in the previous step, and validates the format of the inputted tag (vX.X.X). The
-   user is also reminded to update the version field in package.json.
-1. **Tagging the new release:** The script then tags a new release and syncs the separate major tag (e.g. v1, v2) with
-   the new release tag (e.g. v1.0.0, v2.1.2). When the user is creating a new major release, the script auto-detects
-   this and creates a `releases/v#` branch for the previous major version.
-1. **Pushing changes to remote:** Finally, the script pushes the necessary commits, tags and branches to the remote
-   repository. From here, you will need to create a new release in GitHub so users can easily reference the new tags in
-   their workflows.
+MIT

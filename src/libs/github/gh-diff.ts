@@ -52,8 +52,6 @@ function inferIssues(text: string, issuePattern: string): string[] {
   if (!text) {
     return [];
   }
-  console.log('text', text);
-  console.log('issuePattern', issuePattern);
   const issuesList: string[] = [];
   const issueMatches = text.match(new RegExp(issuePattern, 'g'));
   if (issueMatches) {

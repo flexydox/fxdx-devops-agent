@@ -1,5 +1,5 @@
 import { BaseCommand } from '../base-command.js';
-import { getCommits } from './gh-diff.js';
+import { getCommits } from '../../libs/github/gh-diff.js';
 import * as core from '@actions/core';
 
 export interface GetDiffDataArgs {
@@ -35,3 +35,7 @@ export class GetDiffData extends BaseCommand<GetDiffDataArgs> {
     core.setOutput('issues', result.issues);
   }
 }
+// Outputs:
+// - commit-messages: The commit messages in the PR.
+// - files: The filenames changed in the PR.
+// - issues: The issues inferred from the commit messages and PR title.
