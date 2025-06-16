@@ -1,4 +1,25 @@
-# DevOps Agent ![Marketplace](https://img.shields.io/badge/Marketplace-GitHub%20Actions-blue?logo=github) ![License](https://img.shields.io/github/license/flexydox/fxdx-devops-agent)
+# DevOps Agent ![Marketplace](https://img.shields.i### Environment Variables - Github related
+
+- `GITHUB_REPOSITORY`: The repository in the format `owner/repo` (automatically set by GitHub Actions).
+- `GITHUB_TOKEN`: The token used for GitHub API authentication (automatically set by GitHub Actions).
+  - **Required for**: All GitHub commands (`github` command group)
+  - **Default**: Automatically provided by GitHub Actions runtime
+
+### Environment Variables - Jira related
+
+- `ATLASSIAN_API_BASE_URL`: Base URL for Atlassian API (e.g., `https://your-domain.atlassian.net`).
+  - **Required for**: All Jira commands (`jira` command group)
+- `ATLASSIAN_API_USERNAME`: Username/email for Atlassian API authentication.
+  - **Required for**: All Jira commands (`jira` command group)
+- `ATLASSIAN_API_TOKEN`: API token for Atlassian API authentication.
+  - **Required for**: All Jira commands (`jira` command group)
+  - **How to get**: Generate from your Atlassian account settings
+
+### Environment Variables - AI related
+
+- `OPENAI_API_KEY`: OpenAI API key for AI-powered issue validation.
+  - **Required for**: `github pr-commenter` command when using AI validation
+  - **Optional**: Not needed for basic GitHub or Jira operationsketplace-GitHub%20Actions-blue?logo=github) ![License](https://img.shields.io/github/license/flexydox/fxdx-devops-agent)
 
 A powerful GitHub Action for automating your development workflow with Jira, GitHub, and versioning operations. Supports advanced PR validation, Jira issue management, and more.
 
@@ -11,6 +32,9 @@ A powerful GitHub Action for automating your development workflow with Jira, Git
   - [Features](#features)
   - [Commands \& Arguments](#commands--arguments)
     - [~Common Arguments](#common-arguments)
+    - [Environment Variables - Github related](#environment-variables---github-related)
+    - [Environment Variables - Jira related](#environment-variables---jira-related)
+    - [Environment Variables - AI related](#environment-variables---ai-related)
     - [Jira Commands](#jira-commands)
     - [GitHub Commands](#github-commands)
     - [Version Commands](#version-commands)
@@ -21,6 +45,7 @@ A powerful GitHub Action for automating your development workflow with Jira, Git
     - [Validate PR with Jira issues and comment](#validate-pr-with-jira-issues-and-comment)
     - [Get PR diff data](#get-pr-diff-data)
     - [Parse a version string](#parse-a-version-string)
+    - [Get commit information](#get-commit-information)
   - [Development](#development)
   - [License](#license)
 
@@ -45,6 +70,21 @@ A powerful GitHub Action for automating your development workflow with Jira, Git
 - issues (string): Comma-separated list of Jira issues (e.g., "PROJ-1,PROJ-2").
 - prTitleRegex (string, optional): Regex to match PR titles for issue validation.
 
+### Environment Variables - Github related
+
+- `GITHUB_REPOSITORY`: The repository in the format `owner/repo` (automatically set by GitHub Actions).
+- `GITHUB_TOKEN`: The token used for GitHub API authentication (automatically set by GitHub Actions).
+
+### Environment Variables - Jira related
+
+- `ATLASSIAN_API_BASE_URL`: Base URL for Atlassian API (default: `https://mycompany.atlassian.com`).
+- `ATLASSIAN_API_USERNAME`: Username for Atlassian API authentication (optional).
+- `ATLASSIAN_API_TOKEN`: Token for Atlassian API authentication (optional).
+
+### Environment Variables - AI related
+
+- `OPENAI_API_KEY`: OpenAI API key for AI-related operations (optional).
+
 ### Jira Commands
 
 | Subcommand          | Arguments                                                                                                                                      | Description                                           | Example                                                                                                     | Outputs |
@@ -56,10 +96,11 @@ A powerful GitHub Action for automating your development workflow with Jira, Git
 
 ### GitHub Commands
 
-| Subcommand      | Arguments                                                                                                                                                                            | Description                                            | Example                                                                                                             | Outputs                              |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
-| `pr-commenter`  | `issues` (string), `prNumber` (string), `prTitleRegex` (string, optional), `failWhenNoIssues` (bool, optional), `applyToParent` (bool, optional), `applyToSubtasks` (bool, optional) | Validate Jira issues on a PR and synchronize comments. | `args: '{ "issues": "PROJ-456", "prNumber": "${{ github.event.pull_request.number }}", "failWhenNoIssues": true }'` | None                                 |
-| `get-diff-data` | `prNumber` (string), `issuePattern` (string, optional), `dataSeparator` (string, optional)                                                                                           | Extract commit messages, files, and referenced issues. | `args: '{ "prNumber": "${{ github.event.pull_request.number }}" }'`                                                 | `commit-messages`, `files`, `issues` |
+| Subcommand      | Arguments                                                                                                                                                                            | Description                                            | Example                                                                                                             | Outputs                                                                                                                      |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `pr-commenter`  | `issues` (string), `prNumber` (string), `prTitleRegex` (string, optional), `failWhenNoIssues` (bool, optional), `applyToParent` (bool, optional), `applyToSubtasks` (bool, optional) | Validate Jira issues on a PR and synchronize comments. | `args: '{ "issues": "PROJ-456", "prNumber": "${{ github.event.pull_request.number }}", "failWhenNoIssues": true }'` | None                                                                                                                         |
+| `get-diff-data` | `prNumber` (string), `issuePattern` (string, optional), `dataSeparator` (string, optional)                                                                                           | Extract commit messages, files, and referenced issues. | `args: '{ "prNumber": "${{ github.event.pull_request.number }}" }'`                                                 | `commit-messages`, `files`, `issues`                                                                                         |
+| `commit-info`   | `sha` (string), `repo` (string, optional)                                                                                                                                            | Get detailed information about a specific commit.      | `args: '{ "sha": "abc123def456", "repo": "owner/repo" }'`                                                           | `message`, `author-name`, `author-email`, `author-date`, `committer-name`, `committer-email`, `committer-date`, `sha`, `url` |
 
 ### Version Commands
 
@@ -94,11 +135,22 @@ steps:
 
 ## Examples
 
+> **Note**: Before using these examples, make sure to add the required environment variables as repository secrets in your GitHub repository settings:
+>
+> - `ATLASSIAN_API_BASE_URL`: Your Atlassian domain (e.g., `https://your-company.atlassian.net`)
+> - `ATLASSIAN_API_USERNAME`: Your Atlassian username or email
+> - `ATLASSIAN_API_TOKEN`: Your Atlassian API token (generate from account settings)
+> - `OPENAI_API_KEY`: Your OpenAI API key (only if using AI features)
+
 ### Add a comment to Jira issues
 
 ```yaml
 - name: Add Jira comment
   uses: flexydox/fxdx-devops-agent@v1
+  env:
+    ATLASSIAN_API_BASE_URL: ${{ secrets.ATLASSIAN_API_BASE_URL }}
+    ATLASSIAN_API_USERNAME: ${{ secrets.ATLASSIAN_API_USERNAME }}
+    ATLASSIAN_API_TOKEN: ${{ secrets.ATLASSIAN_API_TOKEN }}
   with:
     command: jira
     subcommand: add-comment
@@ -110,6 +162,10 @@ steps:
 ```yaml
 - name: Update Jira status
   uses: flexydox/fxdx-devops-agent@v1
+  env:
+    ATLASSIAN_API_BASE_URL: ${{ secrets.ATLASSIAN_API_BASE_URL }}
+    ATLASSIAN_API_USERNAME: ${{ secrets.ATLASSIAN_API_USERNAME }}
+    ATLASSIAN_API_TOKEN: ${{ secrets.ATLASSIAN_API_TOKEN }}
   with:
     command: jira
     subcommand: update-status
@@ -122,6 +178,12 @@ steps:
 - name: PR Jira Validator
   id: pr-jira-validator
   uses: flexydox/fxdx-devops-agent@v1
+  env:
+    ATLASSIAN_API_BASE_URL: ${{ secrets.ATLASSIAN_API_BASE_URL }}
+    ATLASSIAN_API_USERNAME: ${{ secrets.ATLASSIAN_API_USERNAME }}
+    ATLASSIAN_API_TOKEN: ${{ secrets.ATLASSIAN_API_TOKEN }}
+    OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   with:
     command: github
     subcommand: pr-commenter
@@ -138,6 +200,8 @@ steps:
 - name: Get PR Diff Data
   id: pr-diff
   uses: flexydox/fxdx-devops-agent@v1
+  env:
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   with:
     command: github
     subcommand: get-diff-data
@@ -165,6 +229,116 @@ steps:
     echo "Minor: ${{ steps.parse-version.outputs.minor }}"
     echo "Patch: ${{ steps.parse-version.outputs.patch }}"
     echo "Pre-release: ${{ steps.parse-version.outputs.pre }}"
+```
+
+### Get commit information
+
+```yaml
+- name: Get commit info
+  id: commit-info
+  uses: flexydox/fxdx-devops-agent@v1
+  env:
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  with:
+    command: github
+    subcommand: commit-info
+    args: '{ "sha": "${{ github.sha }}" }'
+- name: Echo commit outputs
+  run: |
+    echo "Message: ${{ steps.commit-info.outputs.message }}"
+    echo "Author: ${{ steps.commit-info.outputs.author-name }} <${{ steps.commit-info.outputs.author-email }}>"
+    echo "Author Date: ${{ steps.commit-info.outputs.author-date }}"
+    echo "Committer: ${{ steps.commit-info.outputs.committer-name }} <${{ steps.commit-info.outputs.committer-email }}>"
+    echo "Committer Date: ${{ steps.commit-info.outputs.committer-date }}"
+    echo "SHA: ${{ steps.commit-info.outputs.sha }}"
+    echo "URL: ${{ steps.commit-info.outputs.url }}"
+```
+
+### Assign Jira issues to a release
+
+```yaml
+- name: Assign to release
+  uses: flexydox/fxdx-devops-agent@v1
+  env:
+    ATLASSIAN_API_BASE_URL: ${{ secrets.ATLASSIAN_API_BASE_URL }}
+    ATLASSIAN_API_USERNAME: ${{ secrets.ATLASSIAN_API_USERNAME }}
+    ATLASSIAN_API_TOKEN: ${{ secrets.ATLASSIAN_API_TOKEN }}
+  with:
+    command: jira
+    subcommand: assign-to-release
+    args: '{ "issues": "PROJ-1,PROJ-2", "version": "v1.2.0" }'
+```
+
+### Update Jira issue labels
+
+```yaml
+- name: Update issue labels
+  uses: flexydox/fxdx-devops-agent@v1
+  env:
+    ATLASSIAN_API_BASE_URL: ${{ secrets.ATLASSIAN_API_BASE_URL }}
+    ATLASSIAN_API_USERNAME: ${{ secrets.ATLASSIAN_API_USERNAME }}
+    ATLASSIAN_API_TOKEN: ${{ secrets.ATLASSIAN_API_TOKEN }}
+  with:
+    command: jira
+    subcommand: update-labels
+    args: '{ "issues": "PROJ-123", "labelsToAdd": "qa-approved,ready-for-prod", "labelsToRemove": "in-progress,needs-review" }'
+```
+
+### Complete workflow example
+
+```yaml
+name: DevOps Workflow
+on:
+  pull_request:
+    types: [opened, synchronize]
+  push:
+    branches: [main]
+
+jobs:
+  validate-and-process:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Extract issues from PR
+      - name: Get PR data
+        id: pr-data
+        uses: flexydox/fxdx-devops-agent@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          command: github
+          subcommand: get-diff-data
+          args: '{ "prNumber": "${{ github.event.pull_request.number }}", "issuePattern": "[A-Z]+-\\d+" }'
+
+      # Validate PR with Jira issues
+      - name: Validate PR
+        if: github.event_name == 'pull_request'
+        uses: flexydox/fxdx-devops-agent@v1
+        env:
+          ATLASSIAN_API_BASE_URL: ${{ secrets.ATLASSIAN_API_BASE_URL }}
+          ATLASSIAN_API_USERNAME: ${{ secrets.ATLASSIAN_API_USERNAME }}
+          ATLASSIAN_API_TOKEN: ${{ secrets.ATLASSIAN_API_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          command: github
+          subcommand: pr-commenter
+          args: '{ "issues": "${{ steps.pr-data.outputs.issues }}", "prNumber": "${{ github.event.pull_request.number }}", "failWhenNoIssues": true }'
+
+      # On merge to main, update Jira issues
+      - name: Update issue status
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: flexydox/fxdx-devops-agent@v1
+        env:
+          ATLASSIAN_API_BASE_URL: ${{ secrets.ATLASSIAN_API_BASE_URL }}
+          ATLASSIAN_API_USERNAME: ${{ secrets.ATLASSIAN_API_USERNAME }}
+          ATLASSIAN_API_TOKEN: ${{ secrets.ATLASSIAN_API_TOKEN }}
+        with:
+          command: jira
+          subcommand: update-status
+          args: '{ "issues": "${{ steps.pr-data.outputs.issues }}", "targetStatus": "Done", "comment": "Merged to main branch" }'
 ```
 
 ---

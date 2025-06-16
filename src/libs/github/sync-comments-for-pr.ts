@@ -1,6 +1,5 @@
 import { IssueValidationResult } from '../../types/issue-validation-result.js';
-import github from '@actions/github';
-import * as core from '@actions/core';
+import { getGitHubClient } from './github-client.js';
 
 interface Comment {
   id: number;
@@ -11,54 +10,23 @@ function getCommentMarker(issueKey: string): string {
   return `<!-- JIRA-ISSUES-VALIDATION-${issueKey} -->`;
 }
 
-function getOctokit() {
-  const GITHUB_TOKEN = process.env.GITHUB_TOKEN ?? '';
-  const octokit = github.getOctokit(GITHUB_TOKEN);
-  return octokit;
-}
-
 async function getPullRequestComments(prNumber: string): Promise<Comment[]> {
-  const octokit = getOctokit();
-  const { owner, repo } = github.context.repo;
-  const response = await octokit.request('GET /repos/{owner}/{repo}/issues/{issue_number}/comments', {
-    owner,
-    repo,
-    issue_number: parseInt(prNumber, 10)
-  });
-  if (response.status !== 200) {
-    throw new Error(`Failed to fetch comments: ${response.status} for PR #${prNumber}.`);
-
-    core.debug(`Response: ${JSON.stringify(response.data)}`);
-  }
-  return response.data satisfies Comment[];
+  const client = getGitHubClient();
+  const comments = await client.getPullRequestComments(parseInt(prNumber, 10));
+  return comments.map((comment) => ({
+    id: comment.id,
+    body: comment.body || undefined
+  }));
 }
 
 async function createComment(prNumber: string, body: string): Promise<void> {
-  const octokit = getOctokit();
-  const { owner, repo } = github.context.repo;
-  const response = await octokit.request('POST /repos/{owner}/{repo}/issues/{issue_number}/comments', {
-    owner,
-    repo,
-    issue_number: parseInt(prNumber, 10),
-    body
-  });
-  if (response.status !== 201) {
-    throw new Error(`Failed to create comment: ${response.status}`);
-  }
+  const client = getGitHubClient();
+  await client.createPullRequestComment(parseInt(prNumber, 10), body);
 }
 
 async function updateComment(commentId: number, body: string): Promise<void> {
-  const octokit = getOctokit();
-  const { owner, repo } = github.context.repo;
-  const response = await octokit.request('PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}', {
-    owner,
-    repo,
-    comment_id: commentId,
-    body
-  });
-  if (response.status !== 200) {
-    throw new Error(`Failed to update comment: ${response.status}`);
-  }
+  const client = getGitHubClient();
+  await client.updateComment(commentId, body);
 }
 
 function statusToEmoji(status: string): string {

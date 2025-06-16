@@ -1,3 +1,5 @@
+import { getGitHubClient } from './github-client.js';
+
 export interface CommitData {
   sha: string;
   commit: {
@@ -15,31 +17,11 @@ export interface FileData {
 
 const SCALAR_SEPARATOR = ',';
 
-async function guardApiResponse(
-  errMsg: string,
-  url: string,
-  response: { ok: boolean; statusText: string; text: () => Promise<string> }
-) {
-  if (!response.ok) {
-    const repo = process.env.GITHUB_REPOSITORY;
-    const token = process.env.GITHUB_TOKEN;
-    const responseText = await response.text();
-    throw new Error(`
-      url: ${url}
-      ${errMsg}: 
-      ${responseText}
-      Env:
-      GITHUB_REPOSITORY: ${repo}
-      GITHUB_TOKEN: ${token}`);
-  }
-}
-
 export interface GetCommitsInput {
   repo: string;
   prNumber: string;
   dataSeparator: string;
   issuePattern?: string;
-  token: string;
 }
 
 export interface GetCommitsOutput {
@@ -63,49 +45,27 @@ function inferIssues(text: string, issuePattern: string): string[] {
 }
 
 export async function getCommits(data: GetCommitsInput): Promise<GetCommitsOutput> {
-  const { repo, prNumber, dataSeparator, issuePattern, token } = data;
-  const headers = {
-    Authorization: `Bearer ${token}`,
-    'User-Agent': 'nodejs-action-script',
-    'X-GitHub-Api-Version': '2022-11-28'
-  };
-  const commitsUrl = `https://api.github.com/repos/${repo}/pulls/${prNumber}/commits`;
-  const filesUrl = `https://api.github.com/repos/${repo}/pulls/${prNumber}/files`;
-  const prUrl = `https://api.github.com/repos/${repo}/pulls/${prNumber}`;
+  const { prNumber, dataSeparator, issuePattern } = data;
+  const prNumberInt = parseInt(prNumber, 10);
 
-  const prResp = await fetch(prUrl, {
-    method: 'GET',
-    headers
-  });
+  // Get GitHub client instance
+  const client = getGitHubClient();
 
-  const filesResp = await fetch(filesUrl, {
-    method: 'GET',
-    headers
-  });
-  const commitsResp = await fetch(commitsUrl, {
-    method: 'GET',
-    headers
-  });
-
-  await guardApiResponse('Failed to fetch PR', prUrl, prResp);
-  await guardApiResponse('Failed to fetch commits', commitsUrl, commitsResp);
-  await guardApiResponse('Failed to fetch files', filesUrl, filesResp);
-
-  const prData = (await prResp.json()) as {
-    title: string;
-    body: string;
-  };
-
-  const commits = (await commitsResp.json()) as CommitData[];
+  // Fetch all required data using Octokit
+  const [prData, commits, files] = await Promise.all([
+    client.getPullRequest(prNumberInt),
+    client.getPullRequestCommits(prNumberInt),
+    client.getPullRequestFiles(prNumberInt)
+  ]);
 
   const commitMessages = commits.map((c) => `- ${c.commit.message}`).join(dataSeparator);
 
-  const filenamesList: string[] = [];
+  const filenamesList = files.map((f) => f.filename);
   const issuesList: string[] = [];
 
   if (issuePattern) {
-    issuesList.push(...inferIssues(prData.title, issuePattern));
-    issuesList.push(...inferIssues(prData.body, issuePattern));
+    issuesList.push(...inferIssues(prData.title || '', issuePattern));
+    issuesList.push(...inferIssues(prData.body || '', issuePattern));
     issuesList.push(...inferIssues(commitMessages, issuePattern));
   }
 

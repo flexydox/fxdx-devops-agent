@@ -1,6 +1,6 @@
 export type CommandName = 'jira' | 'github' | 'version';
 export type SubCommandJira = 'update-status' | 'add-comment' | 'assign-to-release' | 'update-labels';
-export type SubCommandGithub = 'pr-commenter' | 'get-diff-data';
+export type SubCommandGithub = 'pr-commenter' | 'get-diff-data' | 'commit-info';
 export type SubCommandVersion = 'parse';
 
 export type SubCommandName = SubCommandJira | SubCommandGithub | SubCommandVersion;

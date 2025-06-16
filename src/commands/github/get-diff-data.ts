@@ -27,8 +27,7 @@ export class GetDiffData extends BaseCommand<GetDiffDataArgs> {
       prNumber: _args.prNumber ?? '',
       issuePattern: _args.issuePattern,
       dataSeparator: _args.dataSeparator ?? '\n',
-      repo: process.env.GITHUB_REPOSITORY ?? '',
-      token: process.env.GITHUB_TOKEN ?? ''
+      repo: process.env.GITHUB_REPOSITORY ?? ''
     });
     core.setOutput('commit-messages', result.commitMessages);
     core.setOutput('files', result.filenames);

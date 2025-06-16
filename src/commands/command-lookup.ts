@@ -1,6 +1,7 @@
 import { CommandArgs, CommandName, SubCommandName } from '../types/command-types.js';
 import { BaseCommand } from './base-command.js';
 import { GetDiffData } from './github/get-diff-data.js';
+import { CommitInfo } from './github/commit-info.js';
 import { JiraAddComment } from './jira/jira-add-comment.js';
 import { GithubPRCommenter } from './github/github-pr-commenter.js';
 import { JiraUpdateStatus } from './jira/jira-update-status.js';
@@ -17,7 +18,8 @@ const commands: Record<CommandName, Partial<Record<SubCommandName, BaseCommand<C
   },
   github: {
     'pr-commenter': new GithubPRCommenter(),
-    'get-diff-data': new GetDiffData()
+    'get-diff-data': new GetDiffData(),
+    'commit-info': new CommitInfo()
   },
   version: {
     parse: new VersionParse()
