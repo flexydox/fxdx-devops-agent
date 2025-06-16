@@ -1,3 +1,4 @@
+import { inferIssues } from '../string-utils.js';
 import { getGitHubClient } from './github-client.js';
 
 export interface CommitData {
@@ -30,20 +31,6 @@ export interface GetCommitsOutput {
   issues: string;
 }
 
-function inferIssues(text: string, issuePattern: string): string[] {
-  if (!text) {
-    return [];
-  }
-  const issuesList: string[] = [];
-  const issueMatches = text.match(new RegExp(issuePattern, 'g'));
-  if (issueMatches) {
-    for (const match of issueMatches) {
-      issuesList.push(match);
-    }
-  }
-  return issuesList;
-}
-
 export async function getCommits(data: GetCommitsInput): Promise<GetCommitsOutput> {
   const { prNumber, dataSeparator, issuePattern } = data;
   const prNumberInt = parseInt(prNumber, 10);
@@ -62,7 +49,6 @@ export async function getCommits(data: GetCommitsInput): Promise<GetCommitsOutpu
 
   const filenamesList = files.map((f) => f.filename);
   const issuesList: string[] = [];
-
   if (issuePattern) {
     issuesList.push(...inferIssues(prData.title || '', issuePattern));
     issuesList.push(...inferIssues(prData.body || '', issuePattern));

@@ -27289,6 +27289,9 @@ function parseInputs() {
         }
         catch {
             coreExports.setFailed('Failed to parse args as JSON');
+            coreExports.debug(`Raw args string: ${argsString}`);
+            coreExports.debug(`Command: ${command}`);
+            coreExports.debug(`Subcommand: ${subcommand}`);
         }
     }
     return { command, subcommand, args };
@@ -27340,6 +27343,19 @@ function transliterateText(input) {
 }
 function normalizeString(input) {
     return input.toLowerCase();
+}
+function inferIssues(text, issuePattern) {
+    if (!text) {
+        return [];
+    }
+    const issuesList = [];
+    const issueMatches = text.match(new RegExp(issuePattern, 'g'));
+    if (issueMatches) {
+        for (const match of issueMatches) {
+            issuesList.push(match);
+        }
+    }
+    return issuesList;
 }
 
 var dist = {exports: {}};
@@ -34116,19 +34132,6 @@ function getGitHubClient() {
 }
 
 const SCALAR_SEPARATOR = ',';
-function inferIssues(text, issuePattern) {
-    if (!text) {
-        return [];
-    }
-    const issuesList = [];
-    const issueMatches = text.match(new RegExp(issuePattern, 'g'));
-    if (issueMatches) {
-        for (const match of issueMatches) {
-            issuesList.push(match);
-        }
-    }
-    return issuesList;
-}
 async function getCommits(data) {
     const { prNumber, dataSeparator, issuePattern } = data;
     const prNumberInt = parseInt(prNumber, 10);
@@ -40997,6 +41000,35 @@ class JiraUpdateLabels extends BaseJiraCommand {
     }
 }
 
+class TextGetIssues extends BaseCommand {
+    constructor() {
+        super('text', 'get-issues');
+    }
+    async execute(args) {
+        const rawText = args.text;
+        if (!rawText) {
+            coreExports.info('No text provided, skipping parsing.');
+            return;
+        }
+        const issuePattern = args.issuePattern;
+        if (!issuePattern) {
+            coreExports.setFailed('Issue pattern is required');
+            return;
+        }
+        coreExports.debug(`Using issue pattern: ${issuePattern}`);
+        coreExports.debug(`Raw text: ${rawText}`);
+        const parsedIssues = inferIssues(rawText, issuePattern);
+        if (!parsedIssues || parsedIssues.length === 0) {
+            coreExports.info('No issues found in the provided text.');
+            if (args.failWhenNoIssues) {
+                coreExports.setFailed('No issues found and failWhenNoIssues is set to true.');
+            }
+            return;
+        }
+        coreExports.setOutput('issues', parsedIssues.join(','));
+    }
+}
+
 const commands = {
     jira: {
         'add-comment': new JiraAddComment(),
@@ -41011,6 +41043,9 @@ const commands = {
     },
     version: {
         parse: new VersionParse()
+    },
+    text: {
+        'get-issues': new TextGetIssues()
     }
 };
 function getCommand(commandName, subCommandName) {

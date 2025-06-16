@@ -17,6 +17,9 @@ export function parseInputs(): ParsedInputs {
       core.debug(`Parsed args: ${JSON.stringify(args)}`);
     } catch {
       core.setFailed('Failed to parse args as JSON');
+      core.debug(`Raw args string: ${argsString}`);
+      core.debug(`Command: ${command}`);
+      core.debug(`Subcommand: ${subcommand}`);
     }
   }
   return { command, subcommand, args };

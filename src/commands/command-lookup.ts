@@ -8,6 +8,7 @@ import { JiraUpdateStatus } from './jira/jira-update-status.js';
 import { VersionParse } from './version/version-parse.js';
 import { JiraAssignToRelease } from './jira/jira-assign-to-release.js';
 import { JiraUpdateLabels } from './jira/jira-update-labels.js';
+import { TextGetIssues } from './text/text-get-issues.js';
 
 const commands: Record<CommandName, Partial<Record<SubCommandName, BaseCommand<CommandArgs>>>> = {
   jira: {
@@ -23,6 +24,9 @@ const commands: Record<CommandName, Partial<Record<SubCommandName, BaseCommand<C
   },
   version: {
     parse: new VersionParse()
+  },
+  text: {
+    'get-issues': new TextGetIssues()
   }
 };
 

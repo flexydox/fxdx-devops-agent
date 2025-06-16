@@ -10,7 +10,6 @@ inputs:
     description: |
       The command to run. It should be one of the following: 'jira', 'git'
     required: true
-    default: ''
   subcommand:
     description: |
       The subcommand to run. It should be one of the following:

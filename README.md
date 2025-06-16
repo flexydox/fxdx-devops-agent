@@ -40,6 +40,7 @@ A powerful GitHub Action for automating your development workflow with Jira, Git
     - [Jira Commands](#jira-commands)
     - [GitHub Commands](#github-commands)
     - [Version Commands](#version-commands)
+    - [Text Commands](#text-commands)
   - [Usage](#usage)
   - [Examples](#examples)
     - [Add a comment to Jira issues](#add-a-comment-to-jira-issues)
@@ -47,6 +48,7 @@ A powerful GitHub Action for automating your development workflow with Jira, Git
     - [Validate PR with Jira issues and comment](#validate-pr-with-jira-issues-and-comment)
     - [Get PR diff data](#get-pr-diff-data)
     - [Parse a version string](#parse-a-version-string)
+    - [Extract issues from text](#extract-issues-from-text)
     - [Get commit information](#get-commit-information)
     - [Assign Jira issues to a release](#assign-jira-issues-to-a-release)
     - [Update Jira issue labels](#update-jira-issue-labels)
@@ -101,17 +103,23 @@ A powerful GitHub Action for automating your development workflow with Jira, Git
 
 ### GitHub Commands
 
-| Subcommand      | Arguments                                                                                                                                                                            | Description                                            | Example                                                                                                             | Outputs                                                                                                                      |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `pr-commenter`  | `issues` (string), `prNumber` (string), `prTitleRegex` (string, optional), `failWhenNoIssues` (bool, optional), `applyToParent` (bool, optional), `applyToSubtasks` (bool, optional) | Validate Jira issues on a PR and synchronize comments. | `args: '{ "issues": "PROJ-456", "prNumber": "${{ github.event.pull_request.number }}", "failWhenNoIssues": true }'` | None                                                                                                                         |
-| `get-diff-data` | `prNumber` (string), `issuePattern` (string, optional), `dataSeparator` (string, optional)                                                                                           | Extract commit messages, files, and referenced issues. | `args: '{ "prNumber": "${{ github.event.pull_request.number }}" }'`                                                 | `commit-messages`, `files`, `issues`                                                                                         |
-| `commit-info`   | `sha` (string), `repo` (string, optional)                                                                                                                                            | Get detailed information about a specific commit.      | `args: '{ "sha": "abc123def456", "repo": "owner/repo" }'`                                                           | `message`, `author-name`, `author-email`, `author-date`, `committer-name`, `committer-email`, `committer-date`, `sha`, `url` |
+| Subcommand      | Arguments                                                                                                                                                                            | Description                                            | Example                                                                                                                        | Outputs                                                                                                                      |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| `pr-commenter`  | `issues` (string), `prNumber` (string), `prTitleRegex` (string, optional), `failWhenNoIssues` (bool, optional), `applyToParent` (bool, optional), `applyToSubtasks` (bool, optional) | Validate Jira issues on a PR and synchronize comments. | `args: '{ "issues": "PROJ-456", "prNumber": "${{ github.event.pull_request.number }}", "failWhenNoIssues": true }'`            | None                                                                                                                         |
+| `get-diff-data` | `prNumber` (string), `issuePattern` (string, optional), `dataSeparator` (string, optional)                                                                                           | Extract commit messages, files, and referenced issues. | `args: '{ "prNumber": "${{ github.event.pull_request.number }}", "issuePattern": "\\bFXDX-\\d+\\b", "dataSeparator": "\\n" }'` | `commit-messages`, `files`, `issues`                                                                                         |
+| `commit-info`   | `sha` (string), `repo` (string, optional)                                                                                                                                            | Get detailed information about a specific commit.      | `args: '{ "sha": "abc123def456", "repo": "owner/repo" }'`                                                                      | `message`, `author-name`, `author-email`, `author-date`, `committer-name`, `committer-email`, `committer-date`, `sha`, `url` |
 
 ### Version Commands
 
 | Subcommand | Arguments          | Description                                           | Example                               | Outputs                          |
 | ---------- | ------------------ | ----------------------------------------------------- | ------------------------------------- | -------------------------------- |
 | `parse`    | `version` (string) | Parse and output the major, minor, patch, pre fields. | `args: '{ "version": "1.2.3-beta" }'` | `major`, `minor`, `patch`, `pre` |
+
+### Text Commands
+
+| Subcommand   | Arguments                                                                     | Description                                                    | Example                                                                          | Outputs  |
+| ------------ | ----------------------------------------------------------------------------- | -------------------------------------------------------------- | -------------------------------------------------------------------------------- | -------- |
+| `get-issues` | `text` (string), `issuePattern` (string), `failWhenNoIssues` (bool, optional) | Extract issue references from text using a regular expression. | `args: '{ "text": "Fix PROJ-123 and PROJ-456", "issuePattern": "[A-Z]+-\\d+" }'` | `issues` |
 
 ---
 
@@ -132,7 +140,7 @@ steps:
       args: '{ "key": "value", ... }' # JSON string with arguments for the operation
 ```
 
-- **command**: One of `jira`, `github`, `version`
+- **command**: One of `jira`, `github`, `version`, `text`
 - **subcommand**: See table above
 - **args**: JSON string with arguments for the command/subcommand
 
@@ -236,6 +244,21 @@ steps:
     echo "Pre-release: ${{ steps.parse-version.outputs.pre }}"
 ```
 
+### Extract issues from text
+
+```yaml
+- name: Extract issues from text
+  id: extract-issues
+  uses: flexydox/fxdx-devops-agent@v1
+  with:
+    command: text
+    subcommand: get-issues
+    args: '{ "text": "Fixed PROJ-123 and resolved PROJ-456 issues", "issuePattern": "[A-Z]+-\\d+", "failWhenNoIssues": false }'
+- name: Echo extracted issues
+  run: |
+    echo "Found issues: ${{ steps.extract-issues.outputs.issues }}"
+```
+
 ### Get commit information
 
 ```yaml
@@ -317,6 +340,15 @@ jobs:
           command: github
           subcommand: get-diff-data
           args: '{ "prNumber": "${{ github.event.pull_request.number }}", "issuePattern": "[A-Z]+-\\d+" }'
+
+      # Alternative: Extract issues from commit message or PR title
+      - name: Extract issues from commit message
+        id: commit-issues
+        uses: flexydox/fxdx-devops-agent@v1
+        with:
+          command: text
+          subcommand: get-issues
+          args: '{ "text": "${{ github.event.head_commit.message }}", "issuePattern": "[A-Z]+-\\d+", "failWhenNoIssues": false }'
 
       # Validate PR with Jira issues
       - name: Validate PR
