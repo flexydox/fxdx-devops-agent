@@ -30005,8 +30005,6 @@ function inferIssues(text, issuePattern) {
     if (!text) {
         return [];
     }
-    console.log('text', text);
-    console.log('issuePattern', issuePattern);
     const issuesList = [];
     const issueMatches = text.match(new RegExp(issuePattern, 'g'));
     if (issueMatches) {
@@ -30085,6 +30083,10 @@ class GetDiffData extends BaseCommand {
         coreExports.setOutput('issues', result.issues);
     }
 }
+// Outputs:
+// - commit-messages: The commit messages in the PR.
+// - files: The filenames changed in the PR.
+// - issues: The issues inferred from the commit messages and PR title.
 
 class BaseJiraCommand extends BaseCommand {
     async eachIssue(issues, options) {

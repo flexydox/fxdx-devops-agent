@@ -5,7 +5,8 @@ A powerful GitHub Action for automating your development workflow with Jira, Git
 ---
 
 ## Table of Contents
-- [DevOps Agent  ](#devops-agent--)
+
+- [DevOps Agent ](#devops-agent--)
   - [Table of Contents](#table-of-contents)
   - [Features](#features)
   - [Commands \& Arguments](#commands--arguments)
@@ -26,6 +27,7 @@ A powerful GitHub Action for automating your development workflow with Jira, Git
 ---
 
 ## Features
+
 - Validate and synchronize Jira issues on PRs
 - Update Jira issue status, labels, comments, and releases from workflows
 - Parse semantic versions and extract commit data from PRs
@@ -36,6 +38,7 @@ A powerful GitHub Action for automating your development workflow with Jira, Git
 ## Commands & Arguments
 
 ### ~Common Arguments
+
 - `applyToParent` (bool, optional): Apply operation to parent issues, if actual issue is a subtask.
 - `applyToSubtasks` (bool, optional): Apply operation to subtask issue types, if actual issue is a subtask.
 - `failWhenNoIssues` (bool, optional): Fail the action if no issues are found.
@@ -44,25 +47,25 @@ A powerful GitHub Action for automating your development workflow with Jira, Git
 
 ### Jira Commands
 
-| Subcommand         | Arguments                                                                                      | Description                                            | Example | Outputs |
-|--------------------|-----------------------------------------------------------------------------------------------|--------------------------------------------------------|---------|---------|
-| `add-comment`      | `issues` (string), `comment` (string), `applyToParent` (bool, optional), `applyToSubtasks` (bool, optional) | Add comment to Jira issues.                            | `args: '{ "issues": "PROJ-1,PROJ-2", "comment": "Deployed to staging." }'` | None |
-| `update-status`    | `issues` (string), `targetStatus` (string), `comment` (string, optional), `applyToParent` (bool, optional), `applyToSubtasks` (bool, optional) | Update Jira issue status and add an optional comment.  | `args: '{ "issues": "PROJ-123", "targetStatus": "Done", "comment": "Automatically transitioned via CI." }'` | None |
-| `assign-to-release`| `issues` (string), `version` (string), `applyToParent` (bool, optional), `applyToSubtasks` (bool, optional) | Assign Jira issues to a release version.               | `args: '{ "issues": "PROJ-1,PROJ-2", "version": "1.0.0" }'` | None |
-| `update-labels`    | `issues` (string), `labelsToAdd` (string), `labelsToRemove` (string), `applyToParent` (bool, optional), `applyToSubtasks` (bool, optional) | Add/remove labels on Jira issues.                      | `args: '{ "issues": "PROJ-1", "labelsToAdd": "qa,prod", "labelsToRemove": "wip" }'` | None |
+| Subcommand          | Arguments                                                                                                                                      | Description                                           | Example                                                                                                     | Outputs |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ------- |
+| `add-comment`       | `issues` (string), `comment` (string), `applyToParent` (bool, optional), `applyToSubtasks` (bool, optional)                                    | Add comment to Jira issues.                           | `args: '{ "issues": "PROJ-1,PROJ-2", "comment": "Deployed to staging." }'`                                  | None    |
+| `update-status`     | `issues` (string), `targetStatus` (string), `comment` (string, optional), `applyToParent` (bool, optional), `applyToSubtasks` (bool, optional) | Update Jira issue status and add an optional comment. | `args: '{ "issues": "PROJ-123", "targetStatus": "Done", "comment": "Automatically transitioned via CI." }'` | None    |
+| `assign-to-release` | `issues` (string), `version` (string), `applyToParent` (bool, optional), `applyToSubtasks` (bool, optional)                                    | Assign Jira issues to a release version.              | `args: '{ "issues": "PROJ-1,PROJ-2", "version": "1.0.0" }'`                                                 | None    |
+| `update-labels`     | `issues` (string), `labelsToAdd` (string), `labelsToRemove` (string), `applyToParent` (bool, optional), `applyToSubtasks` (bool, optional)     | Add/remove labels on Jira issues.                     | `args: '{ "issues": "PROJ-1", "labelsToAdd": "qa,prod", "labelsToRemove": "wip" }'`                         | None    |
 
 ### GitHub Commands
 
-| Subcommand         | Arguments                                                                                      | Description                                            | Example | Outputs |
-|--------------------|-----------------------------------------------------------------------------------------------|--------------------------------------------------------|---------|---------|
-| `pr-commenter`     | `issues` (string), `prNumber` (string), `prTitleRegex` (string, optional), `failWhenNoIssues` (bool, optional), `applyToParent` (bool, optional), `applyToSubtasks` (bool, optional) | Validate Jira issues on a PR and synchronize comments. | `args: '{ "issues": "PROJ-456", "prNumber": "${{ github.event.pull_request.number }}", "failWhenNoIssues": true }'` | None |
-| `get-diff-data`    | `prNumber` (string), `issuePattern` (string, optional), `dataSeparator` (string, optional)    | Extract commit messages, files, and referenced issues. | `args: '{ "prNumber": "${{ github.event.pull_request.number }}" }'` | `commit-messages`, `files`, `issues` |
+| Subcommand      | Arguments                                                                                                                                                                            | Description                                            | Example                                                                                                             | Outputs                              |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| `pr-commenter`  | `issues` (string), `prNumber` (string), `prTitleRegex` (string, optional), `failWhenNoIssues` (bool, optional), `applyToParent` (bool, optional), `applyToSubtasks` (bool, optional) | Validate Jira issues on a PR and synchronize comments. | `args: '{ "issues": "PROJ-456", "prNumber": "${{ github.event.pull_request.number }}", "failWhenNoIssues": true }'` | None                                 |
+| `get-diff-data` | `prNumber` (string), `issuePattern` (string, optional), `dataSeparator` (string, optional)                                                                                           | Extract commit messages, files, and referenced issues. | `args: '{ "prNumber": "${{ github.event.pull_request.number }}" }'`                                                 | `commit-messages`, `files`, `issues` |
 
 ### Version Commands
 
-| Subcommand         | Arguments                                                                                      | Description                                            | Example | Outputs |
-|--------------------|-----------------------------------------------------------------------------------------------|--------------------------------------------------------|---------|---------|
-| `parse`            | `version` (string)                                                                            | Parse and output the major, minor, patch, pre fields.  | `args: '{ "version": "1.2.3-beta" }'` | `major`, `minor`, `patch`, `pre` |
+| Subcommand | Arguments          | Description                                           | Example                               | Outputs                          |
+| ---------- | ------------------ | ----------------------------------------------------- | ------------------------------------- | -------------------------------- |
+| `parse`    | `version` (string) | Parse and output the major, minor, patch, pre fields. | `args: '{ "version": "1.2.3-beta" }'` | `major`, `minor`, `patch`, `pre` |
 
 ---
 
@@ -92,6 +95,7 @@ steps:
 ## Examples
 
 ### Add a comment to Jira issues
+
 ```yaml
 - name: Add Jira comment
   uses: flexydox/fxdx-devops-agent@v1
@@ -102,6 +106,7 @@ steps:
 ```
 
 ### Update Jira status for issues
+
 ```yaml
 - name: Update Jira status
   uses: flexydox/fxdx-devops-agent@v1
@@ -112,6 +117,7 @@ steps:
 ```
 
 ### Validate PR with Jira issues and comment
+
 ```yaml
 - name: PR Jira Validator
   id: pr-jira-validator
@@ -127,6 +133,7 @@ steps:
 ```
 
 ### Get PR diff data
+
 ```yaml
 - name: Get PR Diff Data
   id: pr-diff
@@ -143,6 +150,7 @@ steps:
 ```
 
 ### Parse a version string
+
 ```yaml
 - name: Parse version
   id: parse-version
