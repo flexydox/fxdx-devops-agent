@@ -40476,9 +40476,7 @@ OpenAI.Responses = Responses;
 OpenAI.Evals = Evals;
 OpenAI.EvalListResponsesPage = EvalListResponsesPage;
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-async function validateIssue(type, summary, description) {
-    const devPrompt = `
+const devPrompt = `
 Jsi nástroj na ověřování kvality Jira issue.
 Zkontroluj zadání podle kritérií kvality.
 
@@ -40512,6 +40510,8 @@ Vrať odpověď v JSON formátu:
   }
 }
 `;
+async function validateIssue(type, summary, description) {
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const userPrompt = `
     - Typ issue: ${type}
     - Summary: ${summary}

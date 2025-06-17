@@ -2,16 +2,9 @@ import { OpenAI } from 'openai';
 import { IssueInfo } from '../../types/issue-info.js';
 import { IssueValidationResult } from '../../types/issue-validation-result.js';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
 export type IssueType = 'bug' | 'story' | 'task' | 'subtask' | 'epic' | string;
 
-export async function validateIssue(
-  type: IssueType,
-  summary: string,
-  description: string
-): Promise<IssueValidationResult> {
-  const devPrompt = `
+const devPrompt = `
 Jsi nástroj na ověřování kvality Jira issue.
 Zkontroluj zadání podle kritérií kvality.
 
@@ -46,6 +39,12 @@ Vrať odpověď v JSON formátu:
 }
 `;
 
+export async function validateIssue(
+  type: IssueType,
+  summary: string,
+  description: string
+): Promise<IssueValidationResult> {
+  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   const userPrompt = `
     - Typ issue: ${type}
     - Summary: ${summary}
