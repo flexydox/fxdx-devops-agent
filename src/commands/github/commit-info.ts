@@ -1,6 +1,7 @@
 import * as core from '@actions/core';
 import { BaseCommand } from '../base-command.js';
 import { getGitHubClient, GitHubClient } from '../../libs/github/github-client.js';
+import { sanitizeNonPrintableChars } from '../../libs/string-utils.js';
 
 export interface CommitInfoArgs {
   sha?: string;
@@ -58,7 +59,11 @@ export class CommitInfo extends BaseCommand<CommitInfoArgs> {
       }
 
       // Set outputs
-      core.setOutput('message', commitData.commit.message);
+      core.setOutput('message-original', commitData.commit.message);
+
+      // Strip non-printable characters from the commit message
+      const strippedMessage = sanitizeNonPrintableChars(commitData.commit.message, ' ');
+      core.setOutput('message', strippedMessage);
       core.setOutput('author-name', commitData.commit.author?.name || '');
       core.setOutput('author-email', commitData.commit.author?.email || '');
       core.setOutput('author-date', commitData.commit.author?.date || '');

@@ -27357,6 +27357,9 @@ function inferIssues(text, issuePattern) {
     }
     return issuesList;
 }
+function sanitizeNonPrintableChars(input, replaceWith) {
+    return input.replace(/[^\x20-\x7E]+/g, replaceWith);
+}
 
 var dist = {exports: {}};
 
@@ -34234,7 +34237,10 @@ class CommitInfo extends BaseCommand {
                 commitData = await client.getCommit(sha, owner, repoName);
             }
             // Set outputs
-            coreExports.setOutput('message', commitData.commit.message);
+            coreExports.setOutput('message-original', commitData.commit.message);
+            // Strip non-printable characters from the commit message
+            const strippedMessage = sanitizeNonPrintableChars(commitData.commit.message, ' ');
+            coreExports.setOutput('message', strippedMessage);
             coreExports.setOutput('author-name', commitData.commit.author?.name || '');
             coreExports.setOutput('author-email', commitData.commit.author?.email || '');
             coreExports.setOutput('author-date', commitData.commit.author?.date || '');

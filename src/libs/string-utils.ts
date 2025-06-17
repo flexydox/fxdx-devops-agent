@@ -21,3 +21,7 @@ export function inferIssues(text: string, issuePattern: string): string[] {
   }
   return issuesList;
 }
+
+export function sanitizeNonPrintableChars(input: string, replaceWith: string): string {
+  return input.replace(/[^\x20-\x7E]+/g, replaceWith);
+}
