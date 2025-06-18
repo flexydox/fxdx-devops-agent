@@ -29950,6 +29950,8 @@ async function getParentIssue(issueNumber, searchParams) {
     return jiraIssue;
 }
 async function getIssues(issues, options) {
+    coreExports.debug(`Getting issues: ${issues.join(', ')}`);
+    coreExports.debug(`Options: ${JSON.stringify(options)}`);
     const { loadParent = false, skipSubtasks = false, searchParams = {} } = options;
     if (issues.length === 0) {
         return [];
@@ -29960,15 +29962,19 @@ async function getIssues(issues, options) {
             const jiraIssue = await getJiraIssue(issueNumber, searchParams);
             let parentIssue = null;
             if (loadParent) {
+                coreExports.debug(`Loading parent issue for ${issueNumber}`);
                 parentIssue = await getParentIssue(issueNumber, searchParams);
             }
             const isSubtask = jiraIssue?.fields?.issuetype?.subtask;
-            if (!skipSubtasks && isSubtask) {
-                jiraIssues.add(jiraIssue);
-            }
+            coreExports.debug(`Issue ${issueNumber} is subtask: ${isSubtask}`);
             if (parentIssue && loadParent) {
                 jiraIssues.add(parentIssue);
             }
+            if (skipSubtasks && isSubtask) {
+                coreExports.debug(`Skipping subtask ${issueNumber}`);
+                continue;
+            }
+            jiraIssues.add(jiraIssue);
         }
         catch (error) {
             coreExports.warning(`Error fetching issue ${issueNumber}: ${error}`);
@@ -34263,6 +34269,8 @@ class CommitInfo extends BaseCommand {
 class BaseJiraCommand extends BaseCommand {
     async eachIssue(issues, options) {
         const { applyToParent = true, applyToSubtasks = false, callback = async () => { } } = options;
+        coreExports.debug(`Processing issues: ${issues.join(', ')}`);
+        coreExports.debug(`Options: applyToParent=${applyToParent}, applyToSubtasks=${applyToSubtasks}`);
         const jiraIssues = await getIssues(issues, {
             loadParent: applyToParent,
             skipSubtasks: !applyToSubtasks,
@@ -34270,7 +34278,7 @@ class BaseJiraCommand extends BaseCommand {
                 fields: 'summary,description,issuetype,status,labels,components,parent'
             }
         });
-        Promise.all(jiraIssues.map(async (issue) => {
+        await Promise.all(jiraIssues.map(async (issue) => {
             try {
                 await callback(issue.key);
             }
