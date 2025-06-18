@@ -41077,8 +41077,10 @@ class SlackE2ENotification extends BaseCommand {
         coreExports.debug(`Test result: ${args.testResult}`);
         coreExports.debug(`Total tests: ${args.totalTests}`);
         try {
+            // Choose the appropriate webhook URL based on test result and availability
+            const webhookUrl = this.getWebhookUrl(args);
             const message = this.buildSlackMessage(args);
-            await this.sendSlackMessage(args.webhookUrl, message);
+            await this.sendSlackMessage(webhookUrl, message);
             coreExports.info(`Successfully sent Slack notification for E2E test: ${args.testName}`);
             coreExports.setOutput('notification-sent', 'true');
             coreExports.setOutput('test-result', args.testResult);
@@ -41088,6 +41090,15 @@ class SlackE2ENotification extends BaseCommand {
             coreExports.setFailed(`Error sending Slack notification: ${errorMessage}`);
             coreExports.setOutput('notification-sent', 'false');
         }
+    }
+    getWebhookUrl(args) {
+        // If test failed and alert webhook URL is provided, use the alert webhook
+        if (args.testResult === 'fail' && args.slackAlertWebhookUrl) {
+            coreExports.debug('Using alert webhook URL for failed test');
+            return args.slackAlertWebhookUrl;
+        }
+        // Otherwise, use the default webhook URL
+        return args.webhookUrl;
     }
     buildSlackMessage(args) {
         const emoji = args.testResult === 'pass' ? '✅' : '❌';
@@ -41145,6 +41156,18 @@ class SlackE2ENotification extends BaseCommand {
             fields.push({
                 type: 'mrkdwn',
                 text: `*Build Number:*\n${args.buildNumber}`
+            });
+        }
+        if (args.slackChannel) {
+            fields.push({
+                type: 'mrkdwn',
+                text: `*Slack Channel:*\n#${args.slackChannel.replace(/^#/, '')}`
+            });
+        }
+        if (args.slackAlertChannel) {
+            fields.push({
+                type: 'mrkdwn',
+                text: `*Alert Channel:*\n#${args.slackAlertChannel.replace(/^#/, '')}`
             });
         }
         const blocks = [
@@ -41231,6 +41254,7 @@ class SlackE2ENotification extends BaseCommand {
     }
     async sendSlackMessage(webhookUrl, message) {
         coreExports.debug(`Sending message to Slack webhook: ${webhookUrl.substring(0, 50)}...`);
+        coreExports.debug(`Message preview: ${message.text}`);
         const response = await fetch(webhookUrl, {
             method: 'POST',
             headers: {

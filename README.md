@@ -128,7 +128,7 @@ A powerful GitHub Action for automating your development workflow with Jira, Git
 
 | Subcommand         | Arguments                                                                                                                                                                                                                                                                                                                                                                                                                                                        | Description                                                     | Example                                                                                                                    | Outputs                            |
 | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
-| `e2e-notification` | `testName` (string), `testResult` (string), `totalTests` (number), `webhookUrl` (string), `testResultUrl` (string, optional), `dockerImage` (string, optional), `testFramework` (string, optional), `branch` (string, optional), `commitMessage` (string, optional), `author` (string, optional), `repository` (string, optional), `version` (string, optional), `buildUrl` (string, optional), `buildNumber` (string, optional), `sourceUrl` (string, optional) | Send formatted E2E test results to a Slack channel via webhook. | `args: '{ "testName": "E2E Tests", "testResult": "pass", "totalTests": 25, "webhookUrl": "https://hooks.slack.com/..." }'` | `notification-sent`, `test-result` |
+| `e2e-notification` | `testName` (string), `testResult` (string), `totalTests` (number), `webhookUrl` (string), `testResultUrl` (string, optional), `dockerImage` (string, optional), `testFramework` (string, optional), `branch` (string, optional), `commitMessage` (string, optional), `author` (string, optional), `repository` (string, optional), `version` (string, optional), `buildUrl` (string, optional), `buildNumber` (string, optional), `sourceUrl` (string, optional), `slackChannel` (string, optional), `slackAlertChannel` (string, optional), `slackAlertWebhookUrl` (string, optional) | Send formatted E2E test results to a Slack channel via webhook. Supports different webhooks for alerts. | `args: '{ "testName": "E2E Tests", "testResult": "pass", "totalTests": 25, "webhookUrl": "https://hooks.slack.com/...", "slackChannel": "qa", "slackAlertChannel": "alerts" }'` | `notification-sent`, `test-result` |
 
 ---
 
@@ -411,9 +411,17 @@ jobs:
       "buildUrl": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}",
       "buildNumber": "${{ github.run_number }}",
       "sourceUrl": "https://github.com/${{ github.repository }}/commit/${{ github.sha }}",
-      "webhookUrl": "${{ secrets.SLACK_WEBHOOK_URL }}"
+      "slackChannel": "qa-notifications",
+      "slackAlertChannel": "qa-alerts",
+      "webhookUrl": "${{ secrets.SLACK_WEBHOOK_URL }}",
+      "slackAlertWebhookUrl": "${{ secrets.SLACK_ALERT_WEBHOOK_URL }}"
     }'
 ```
+
+**New Channel Features:**
+- `slackChannel`: Specifies the primary Slack channel name (displayed in message)
+- `slackAlertChannel`: Specifies the alert channel name (displayed in message)
+- `slackAlertWebhookUrl`: Optional webhook URL for failed tests (uses alert webhook when test fails)
 
 ---
 

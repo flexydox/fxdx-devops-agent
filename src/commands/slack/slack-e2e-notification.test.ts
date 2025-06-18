@@ -41,7 +41,10 @@ describe('SlackE2ENotification', () => {
       buildUrl: 'https://example.com/build/123',
       buildNumber: '123',
       sourceUrl: 'https://github.com/my-org/my-app',
-      webhookUrl: 'https://hooks.slack.com/services/test/webhook'
+      webhookUrl: 'https://hooks.slack.com/services/test/webhook',
+      slackChannel: 'general',
+      slackAlertChannel: 'alerts',
+      slackAlertWebhookUrl: 'https://hooks.slack.com/services/test/alert-webhook'
     };
 
     beforeEach(() => {
@@ -174,7 +177,7 @@ describe('SlackE2ENotification', () => {
       await command.execute(failArgs);
 
       expect(mockFetch).toHaveBeenCalledWith(
-        validArgs.webhookUrl,
+        validArgs.slackAlertWebhookUrl,
         expect.objectContaining({
           method: 'POST',
           headers: {
@@ -206,7 +209,9 @@ describe('SlackE2ENotification', () => {
           expect.objectContaining({ text: '*Repository:*\nmy-org/my-app' }),
           expect.objectContaining({ text: '*Version:*\n1.2.3' }),
           expect.objectContaining({ text: '*Docker Image:*\nmy-app:latest' }),
-          expect.objectContaining({ text: '*Build Number:*\n123' })
+          expect.objectContaining({ text: '*Build Number:*\n123' }),
+          expect.objectContaining({ text: '*Slack Channel:*\n#general' }),
+          expect.objectContaining({ text: '*Alert Channel:*\n#alerts' })
         ])
       );
 
@@ -216,6 +221,95 @@ describe('SlackE2ENotification', () => {
       expect(actionBlocks[0].accessory.url).toBe(validArgs.testResultUrl);
       expect(actionBlocks[1].accessory.url).toBe(validArgs.buildUrl);
       expect(actionBlocks[2].accessory.url).toBe(validArgs.sourceUrl);
+    });
+
+    it('should use regular webhook for passed tests', async () => {
+      const passArgs = { ...validArgs, testResult: 'pass' as const };
+      await command.execute(passArgs);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        validArgs.webhookUrl,
+        expect.objectContaining({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        })
+      );
+      expect(mockFetch).not.toHaveBeenCalledWith(validArgs.slackAlertWebhookUrl, expect.any(Object));
+    });
+
+    it('should use alert webhook for failed tests when provided', async () => {
+      const failArgs = { ...validArgs, testResult: 'fail' as const };
+      await command.execute(failArgs);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        validArgs.slackAlertWebhookUrl,
+        expect.objectContaining({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        })
+      );
+      expect(mockFetch).not.toHaveBeenCalledWith(validArgs.webhookUrl, expect.any(Object));
+    });
+
+    it('should use regular webhook for failed tests when alert webhook not provided', async () => {
+      const failArgs = {
+        ...validArgs,
+        testResult: 'fail' as const,
+        slackAlertWebhookUrl: undefined
+      };
+      await command.execute(failArgs);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        validArgs.webhookUrl,
+        expect.objectContaining({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        })
+      );
+    });
+
+    it('should include channel names in message fields', async () => {
+      const argsWithChannels = {
+        ...validArgs,
+        slackChannel: 'test-channel',
+        slackAlertChannel: 'alert-channel'
+      };
+
+      await command.execute(argsWithChannels);
+
+      const mockCall = mockFetch.mock.calls[0];
+      const requestBody = mockCall[1] as RequestInit;
+      const messageBody = JSON.parse(requestBody.body as string);
+
+      const sectionBlock = messageBody.blocks[1];
+      expect(sectionBlock.fields).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ text: '*Slack Channel:*\n#test-channel' }),
+          expect.objectContaining({ text: '*Alert Channel:*\n#alert-channel' })
+        ])
+      );
+    });
+
+    it('should handle channels with # prefix correctly', async () => {
+      const argsWithHashChannels = {
+        ...validArgs,
+        slackChannel: '#prefixed-channel',
+        slackAlertChannel: '#prefixed-alerts'
+      };
+
+      await command.execute(argsWithHashChannels);
+
+      const mockCall = mockFetch.mock.calls[0];
+      const requestBody = mockCall[1] as RequestInit;
+      const messageBody = JSON.parse(requestBody.body as string);
+
+      const sectionBlock = messageBody.blocks[1];
+      expect(sectionBlock.fields).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ text: '*Slack Channel:*\n#prefixed-channel' }),
+          expect.objectContaining({ text: '*Alert Channel:*\n#prefixed-alerts' })
+        ])
+      );
     });
   });
 });
