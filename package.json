@@ -30,7 +30,8 @@
     "local-action": "npx @github/local-action . src/main.ts .env",
     "package": "npx rollup --config rollup.config.ts --configPlugin @rollup/plugin-typescript",
     "package:watch": "npm run package -- --watch",
-    "all": "npm run format:write && npm run lint && npm run package"
+    "all": "npm run format:write && npm run lint && npm run package",
+    "test": "jest --config jest.config.js"
   },
   "license": "MIT",
   "dependencies": {
@@ -47,6 +48,7 @@
     "@rollup/plugin-commonjs": "^28.0.1",
     "@rollup/plugin-node-resolve": "^16.0.1",
     "@rollup/plugin-typescript": "^12.1.1",
+    "@types/jest": "^30.0.0",
     "@types/node": "^20.17.32",
     "@typescript-eslint/eslint-plugin": "^8.31.1",
     "@typescript-eslint/parser": "^8.31.1",
@@ -56,11 +58,12 @@
     "eslint-plugin-import": "^2.31.0",
     "eslint-plugin-jest": "^28.11.0",
     "eslint-plugin-prettier": "^5.4.0",
+    "jest": "^30.0.0",
     "make-coverage-badge": "^1.2.0",
     "prettier": "^3.5.3",
     "prettier-eslint": "^16.4.1",
     "rollup": "^4.40.1",
-    "ts-jest": "^29.3.2",
+    "ts-jest": "^29.4.0",
     "ts-jest-resolver": "^2.0.1",
     "typescript": "^5.8.3"
   },

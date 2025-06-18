@@ -1,6 +1,7 @@
 import { getIssues } from '../../libs/jira/api/index.js';
 import { CommandArgs } from '../../types/command-types.js';
 import { BaseCommand } from '../base-command.js';
+import * as core from '@actions/core';
 
 export interface EachIssueOptions {
   applyToParent?: boolean;
@@ -11,6 +12,8 @@ export interface EachIssueOptions {
 export abstract class BaseJiraCommand<TArgs extends CommandArgs> extends BaseCommand<TArgs> {
   async eachIssue(issues: string[], options: EachIssueOptions): Promise<void> {
     const { applyToParent = true, applyToSubtasks = false, callback = async () => {} } = options;
+    core.debug(`Processing issues: ${issues.join(', ')}`);
+    core.debug(`Options: applyToParent=${applyToParent}, applyToSubtasks=${applyToSubtasks}`);
     const jiraIssues = await getIssues(issues, {
       loadParent: applyToParent,
       skipSubtasks: !applyToSubtasks,
@@ -18,8 +21,7 @@ export abstract class BaseJiraCommand<TArgs extends CommandArgs> extends BaseCom
         fields: 'summary,description,issuetype,status,labels,components,parent'
       }
     });
-
-    Promise.all(
+    await Promise.all(
       jiraIssues.map(async (issue) => {
         try {
           await callback(issue.key);

@@ -178,6 +178,8 @@ type GetIssuesOptions = {
 };
 
 export async function getIssues(issues: string[], options: GetIssuesOptions): Promise<JiraIssue[]> {
+  core.debug(`Getting issues: ${issues.join(', ')}`);
+  core.debug(`Options: ${JSON.stringify(options)}`);
   const { loadParent = false, skipSubtasks = false, searchParams = {} } = options;
   if (issues.length === 0) {
     return [];
@@ -188,16 +190,20 @@ export async function getIssues(issues: string[], options: GetIssuesOptions): Pr
       const jiraIssue = await getJiraIssue(issueNumber, searchParams);
       let parentIssue: JiraIssue | null = null;
       if (loadParent) {
+        core.debug(`Loading parent issue for ${issueNumber}`);
         parentIssue = await getParentIssue(issueNumber, searchParams);
       }
       const isSubtask = jiraIssue?.fields?.issuetype?.subtask;
+      core.debug(`Issue ${issueNumber} is subtask: ${isSubtask}`);
 
-      if (!skipSubtasks && isSubtask) {
-        jiraIssues.add(jiraIssue);
-      }
       if (parentIssue && loadParent) {
         jiraIssues.add(parentIssue);
       }
+      if (skipSubtasks && isSubtask) {
+        core.debug(`Skipping subtask ${issueNumber}`);
+        continue;
+      }
+      jiraIssues.add(jiraIssue);
     } catch (error) {
       core.warning(`Error fetching issue ${issueNumber}: ${error}`);
       continue;

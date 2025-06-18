@@ -25,7 +25,7 @@ export function parseInputs(): ParsedInputs {
   return { command, subcommand, args };
 }
 
-function parseIssuesString(issuesString: string): string[] {
+export function parseIssuesString(issuesString: string): string[] {
   return issuesString
     .split(',')
     .map((issue) => issue.trim())
