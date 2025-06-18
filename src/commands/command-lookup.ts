@@ -9,6 +9,7 @@ import { VersionParse } from './version/version-parse.js';
 import { JiraAssignToRelease } from './jira/jira-assign-to-release.js';
 import { JiraUpdateLabels } from './jira/jira-update-labels.js';
 import { TextGetIssues } from './text/text-get-issues.js';
+import { SlackE2ENotification } from './slack/slack-e2e-notification.js';
 
 const commands: Record<CommandName, Partial<Record<SubCommandName, BaseCommand<CommandArgs>>>> = {
   jira: {
@@ -27,6 +28,9 @@ const commands: Record<CommandName, Partial<Record<SubCommandName, BaseCommand<C
   },
   text: {
     'get-issues': new TextGetIssues()
+  },
+  slack: {
+    'e2e-notification': new SlackE2ENotification()
   }
 };
 

@@ -41,6 +41,7 @@ A powerful GitHub Action for automating your development workflow with Jira, Git
     - [GitHub Commands](#github-commands)
     - [Version Commands](#version-commands)
     - [Text Commands](#text-commands)
+    - [Slack Commands](#slack-commands)
   - [Usage](#usage)
   - [Examples](#examples)
     - [Add a comment to Jira issues](#add-a-comment-to-jira-issues)
@@ -52,6 +53,7 @@ A powerful GitHub Action for automating your development workflow with Jira, Git
     - [Get commit information](#get-commit-information)
     - [Assign Jira issues to a release](#assign-jira-issues-to-a-release)
     - [Update Jira issue labels](#update-jira-issue-labels)
+    - [Send Slack notification for E2E test results](#send-slack-notification-for-e2e-test-results)
     - [Complete workflow example](#complete-workflow-example)
   - [Development](#development)
   - [License](#license)
@@ -63,6 +65,7 @@ A powerful GitHub Action for automating your development workflow with Jira, Git
 - Validate and synchronize Jira issues on PRs
 - Update Jira issue status, labels, comments, and releases from workflows
 - Parse semantic versions and extract commit data from PRs
+- Send Slack notifications for E2E test results
 - Modular command/subcommand structure for extensibility
 
 ---
@@ -121,6 +124,12 @@ A powerful GitHub Action for automating your development workflow with Jira, Git
 | ------------ | ----------------------------------------------------------------------------- | -------------------------------------------------------------- | -------------------------------------------------------------------------------- | -------- |
 | `get-issues` | `text` (string), `issuePattern` (string), `failWhenNoIssues` (bool, optional) | Extract issue references from text using a regular expression. | `args: '{ "text": "Fix PROJ-123 and PROJ-456", "issuePattern": "[A-Z]+-\\d+" }'` | `issues` |
 
+### Slack Commands
+
+| Subcommand         | Arguments                                                                                                                                                                                                                                                                                                                                                                                                                                                        | Description                                                     | Example                                                                                                                    | Outputs                            |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| `e2e-notification` | `testName` (string), `testResult` (string), `totalTests` (number), `webhookUrl` (string), `testResultUrl` (string, optional), `dockerImage` (string, optional), `testFramework` (string, optional), `branch` (string, optional), `commitMessage` (string, optional), `author` (string, optional), `repository` (string, optional), `version` (string, optional), `buildUrl` (string, optional), `buildNumber` (string, optional), `sourceUrl` (string, optional) | Send formatted E2E test results to a Slack channel via webhook. | `args: '{ "testName": "E2E Tests", "testResult": "pass", "totalTests": 25, "webhookUrl": "https://hooks.slack.com/..." }'` | `notification-sent`, `test-result` |
+
 ---
 
 ## Usage
@@ -140,7 +149,7 @@ steps:
       args: '{ "key": "value", ... }' # JSON string with arguments for the operation
 ```
 
-- **command**: One of `jira`, `github`, `version`, `text`
+- **command**: One of `jira`, `github`, `version`, `text`, `slack`
 - **subcommand**: See table above
 - **args**: JSON string with arguments for the command/subcommand
 
@@ -377,6 +386,33 @@ jobs:
           command: jira
           subcommand: update-status
           args: '{ "issues": "${{ steps.pr-data.outputs.issues }}", "targetStatus": "Done", "comment": "Merged to main branch" }'
+```
+
+### Send Slack notification for E2E test results
+
+```yaml
+- name: Send E2E test notification to Slack
+  uses: flexydox/fxdx-devops-agent@v1
+  with:
+    command: slack
+    subcommand: e2e-notification
+    args: '{
+      "testName": "E2E Integration Tests",
+      "testResult": "pass",
+      "totalTests": 25,
+      "testResultUrl": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+      "dockerImage": "my-app:${{ github.sha }}",
+      "testFramework": "Playwright",
+      "branch": "${{ github.ref_name }}",
+      "commitMessage": "${{ github.event.head_commit.message }}",
+      "author": "${{ github.actor }}",
+      "repository": "${{ github.repository }}",
+      "version": "${{ github.ref_name }}",
+      "buildUrl": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+      "buildNumber": "${{ github.run_number }}",
+      "sourceUrl": "https://github.com/${{ github.repository }}/commit/${{ github.sha }}",
+      "webhookUrl": "${{ secrets.SLACK_WEBHOOK_URL }}"
+    }'
 ```
 
 ---
