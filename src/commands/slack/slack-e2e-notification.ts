@@ -3,7 +3,7 @@ import { BaseCommand } from '../base-command.js';
 
 export interface SlackE2ENotificationArgs {
   testName: string;
-  testResult: 'pass' | 'fail';
+  testResult: 'success' | 'failure';
   totalTests: number;
   testResultUrl?: string;
   dockerImage?: string;
@@ -68,18 +68,13 @@ export class SlackE2ENotification extends BaseCommand<SlackE2ENotificationArgs> 
       return;
     }
 
-    if (!['pass', 'fail'].includes(args.testResult)) {
-      core.setFailed('Test result must be either "pass" or "fail"');
+    if (!['success', 'failure'].includes(args.testResult)) {
+      core.setFailed('Test result must be either "success" or "failure"');
       return;
     }
 
     if (typeof args.totalTests !== 'number' && args.totalTests !== undefined) {
       core.setFailed('Total tests must be a number');
-      return;
-    }
-
-    if (!args.webhookUrl) {
-      core.setFailed('Slack webhook URL is required');
       return;
     }
 
@@ -105,7 +100,7 @@ export class SlackE2ENotification extends BaseCommand<SlackE2ENotificationArgs> 
 
   private getWebhookUrl(args: SlackE2ENotificationArgs): string {
     // If test failed and alert webhook URL is provided, use the alert webhook
-    if (args.testResult === 'fail' && args.slackAlertWebhookUrl) {
+    if (args.testResult === 'failure' && args.slackAlertWebhookUrl) {
       core.debug('Using alert webhook URL for failed test');
       return args.slackAlertWebhookUrl;
     }
@@ -115,8 +110,8 @@ export class SlackE2ENotification extends BaseCommand<SlackE2ENotificationArgs> 
   }
 
   private buildSlackMessage(args: SlackE2ENotificationArgs): SlackMessage {
-    const emoji = args.testResult === 'pass' ? '✅' : '❌';
-    const status = args.testResult === 'pass' ? 'PASSED' : 'FAILED';
+    const emoji = args.testResult === 'success' ? '✅' : '❌';
+    const status = args.testResult === 'success' ? 'PASSED' : 'FAILED';
 
     const headerText = `${emoji} E2E Test ${status}: ${args.testName}`;
 

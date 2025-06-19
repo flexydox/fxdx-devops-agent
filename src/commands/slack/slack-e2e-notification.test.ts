@@ -1,4 +1,4 @@
-import { SlackE2ENotification, SlackE2ENotificationArgs } from './slack-e2e-notification';
+import { SlackE2ENotification, SlackE2ENotificationArgs } from './slack-e2e-notification.js';
 import * as core from '@actions/core';
 
 // Mock @actions/core
@@ -28,7 +28,7 @@ describe('SlackE2ENotification', () => {
   describe('execute', () => {
     const validArgs: SlackE2ENotificationArgs = {
       testName: 'E2E Integration Tests',
-      testResult: 'pass',
+      testResult: 'success',
       totalTests: 25,
       testResultUrl: 'https://example.com/test-results',
       dockerImage: 'my-app:latest',
@@ -61,7 +61,7 @@ describe('SlackE2ENotification', () => {
 
       expect(mockCore.setFailed).not.toHaveBeenCalled();
       expect(mockCore.setOutput).toHaveBeenCalledWith('notification-sent', 'true');
-      expect(mockCore.setOutput).toHaveBeenCalledWith('test-result', 'pass');
+      expect(mockCore.setOutput).toHaveBeenCalledWith('test-result', 'success');
       expect(mockCore.info).toHaveBeenCalledWith(
         'Successfully sent Slack notification for E2E test: E2E Integration Tests'
       );
@@ -71,7 +71,7 @@ describe('SlackE2ENotification', () => {
     it('should send notification with minimal required fields', async () => {
       const minimalArgs: SlackE2ENotificationArgs = {
         testName: 'Basic Test',
-        testResult: 'fail',
+        testResult: 'failure',
         totalTests: 1,
         webhookUrl: 'https://hooks.slack.com/services/test/webhook'
       };
@@ -80,7 +80,7 @@ describe('SlackE2ENotification', () => {
 
       expect(mockCore.setFailed).not.toHaveBeenCalled();
       expect(mockCore.setOutput).toHaveBeenCalledWith('notification-sent', 'true');
-      expect(mockCore.setOutput).toHaveBeenCalledWith('test-result', 'fail');
+      expect(mockCore.setOutput).toHaveBeenCalledWith('test-result', 'failure');
       expect(mockFetch).toHaveBeenCalledTimes(1);
     });
 
@@ -94,7 +94,7 @@ describe('SlackE2ENotification', () => {
     });
 
     it('should fail when testResult is missing', async () => {
-      const argsWithoutTestResult = { ...validArgs, testResult: '' as 'pass' | 'fail' };
+      const argsWithoutTestResult = { ...validArgs, testResult: '' as 'success' | 'failure' };
 
       await command.execute(argsWithoutTestResult);
 
@@ -103,11 +103,11 @@ describe('SlackE2ENotification', () => {
     });
 
     it('should fail when testResult is invalid', async () => {
-      const argsWithInvalidTestResult = { ...validArgs, testResult: 'invalid' as 'pass' | 'fail' };
+      const argsWithInvalidTestResult = { ...validArgs, testResult: 'invalid' as 'success' | 'failure' };
 
       await command.execute(argsWithInvalidTestResult);
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith('Test result must be either "pass" or "fail"');
+      expect(mockCore.setFailed).toHaveBeenCalledWith('Test result must be either "success" or "failure"');
       expect(mockFetch).not.toHaveBeenCalled();
     });
 
@@ -155,7 +155,7 @@ describe('SlackE2ENotification', () => {
     });
 
     it('should build correct Slack message for passed test', async () => {
-      const passArgs = { ...validArgs, testResult: 'pass' as const };
+      const passArgs = { ...validArgs, testResult: 'success' as const };
 
       await command.execute(passArgs);
 
@@ -172,7 +172,7 @@ describe('SlackE2ENotification', () => {
     });
 
     it('should build correct Slack message for failed test', async () => {
-      const failArgs = { ...validArgs, testResult: 'fail' as const };
+      const failArgs = { ...validArgs, testResult: 'failure' as const };
 
       await command.execute(failArgs);
 
@@ -224,7 +224,7 @@ describe('SlackE2ENotification', () => {
     });
 
     it('should use regular webhook for passed tests', async () => {
-      const passArgs = { ...validArgs, testResult: 'pass' as const };
+      const passArgs = { ...validArgs, testResult: 'success' as const };
       await command.execute(passArgs);
 
       expect(mockFetch).toHaveBeenCalledWith(
@@ -238,7 +238,7 @@ describe('SlackE2ENotification', () => {
     });
 
     it('should use alert webhook for failed tests when provided', async () => {
-      const failArgs = { ...validArgs, testResult: 'fail' as const };
+      const failArgs = { ...validArgs, testResult: 'failure' as const };
       await command.execute(failArgs);
 
       expect(mockFetch).toHaveBeenCalledWith(
@@ -254,7 +254,7 @@ describe('SlackE2ENotification', () => {
     it('should use regular webhook for failed tests when alert webhook not provided', async () => {
       const failArgs = {
         ...validArgs,
-        testResult: 'fail' as const,
+        testResult: 'failure' as const,
         slackAlertWebhookUrl: undefined
       };
       await command.execute(failArgs);
