@@ -1,13 +1,25 @@
 import { SlackE2ENotification, SlackE2ENotificationArgs } from './slack-e2e-notification.js';
 import * as core from '@actions/core';
+import { WebClient } from '@slack/web-api';
 
 // Mock @actions/core
 jest.mock('@actions/core');
 const mockCore = core as jest.Mocked<typeof core>;
 
-// Mock fetch
-global.fetch = jest.fn() as jest.MockedFunction<typeof fetch>;
-const mockFetch = fetch as jest.MockedFunction<typeof fetch>;
+// Mock @slack/web-api
+jest.mock('@slack/web-api');
+const mockWebClient = WebClient as jest.MockedClass<typeof WebClient>;
+const mockChatPostMessage = jest.fn();
+
+// Mock the WebClient instance
+mockWebClient.mockImplementation(
+  () =>
+    ({
+      chat: {
+        postMessage: mockChatPostMessage
+      }
+    }) as unknown as WebClient
+);
 
 describe('SlackE2ENotification', () => {
   let command: SlackE2ENotification;
@@ -15,7 +27,8 @@ describe('SlackE2ENotification', () => {
   beforeEach(() => {
     command = new SlackE2ENotification();
     jest.clearAllMocks();
-    mockFetch.mockClear();
+    mockChatPostMessage.mockClear();
+    mockWebClient.mockClear();
   });
 
   describe('constructor', () => {
@@ -41,19 +54,19 @@ describe('SlackE2ENotification', () => {
       buildUrl: 'https://example.com/build/123',
       buildNumber: '123',
       sourceUrl: 'https://github.com/my-org/my-app',
-      webhookUrl: 'https://hooks.slack.com/services/test/webhook',
+      botToken: 'xoxb-test-slack-bot-token',
+      channel: 'general',
+      alertChannel: 'alerts',
       slackChannel: 'general',
-      slackAlertChannel: 'alerts',
-      slackAlertWebhookUrl: 'https://hooks.slack.com/services/test/alert-webhook'
+      slackAlertChannel: 'alerts'
     };
 
     beforeEach(() => {
-      mockFetch.mockResolvedValue({
+      mockChatPostMessage.mockResolvedValue({
         ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: jest.fn().mockResolvedValue('ok')
-      } as unknown as Response);
+        channel: 'C1234567890',
+        ts: '1234567890.123456'
+      });
     });
 
     it('should successfully send notification with all fields', async () => {
@@ -65,7 +78,7 @@ describe('SlackE2ENotification', () => {
       expect(mockCore.info).toHaveBeenCalledWith(
         'Successfully sent Slack notification for E2E test: E2E Integration Tests'
       );
-      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(mockChatPostMessage).toHaveBeenCalledTimes(1);
     });
 
     it('should send notification with minimal required fields', async () => {
@@ -73,7 +86,8 @@ describe('SlackE2ENotification', () => {
         testName: 'Basic Test',
         testResult: 'failure',
         totalTests: 1,
-        webhookUrl: 'https://hooks.slack.com/services/test/webhook'
+        botToken: 'xoxb-test-slack-bot-token',
+        channel: 'general'
       };
 
       await command.execute(minimalArgs);
@@ -81,7 +95,7 @@ describe('SlackE2ENotification', () => {
       expect(mockCore.setFailed).not.toHaveBeenCalled();
       expect(mockCore.setOutput).toHaveBeenCalledWith('notification-sent', 'true');
       expect(mockCore.setOutput).toHaveBeenCalledWith('test-result', 'failure');
-      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(mockChatPostMessage).toHaveBeenCalledTimes(1);
     });
 
     it('should fail when testName is missing', async () => {
@@ -90,7 +104,7 @@ describe('SlackE2ENotification', () => {
       await command.execute(argsWithoutTestName);
 
       expect(mockCore.setFailed).toHaveBeenCalledWith('Test name is required');
-      expect(mockFetch).not.toHaveBeenCalled();
+      expect(mockChatPostMessage).not.toHaveBeenCalled();
     });
 
     it('should fail when testResult is missing', async () => {
@@ -99,7 +113,7 @@ describe('SlackE2ENotification', () => {
       await command.execute(argsWithoutTestResult);
 
       expect(mockCore.setFailed).toHaveBeenCalledWith('Test result is required');
-      expect(mockFetch).not.toHaveBeenCalled();
+      expect(mockChatPostMessage).not.toHaveBeenCalled();
     });
 
     it('should fail when testResult is invalid', async () => {
@@ -108,7 +122,7 @@ describe('SlackE2ENotification', () => {
       await command.execute(argsWithInvalidTestResult);
 
       expect(mockCore.setFailed).toHaveBeenCalledWith('Test result must be either "success" or "failure"');
-      expect(mockFetch).not.toHaveBeenCalled();
+      expect(mockChatPostMessage).not.toHaveBeenCalled();
     });
 
     it('should fail when totalTests is not a number', async () => {
@@ -117,20 +131,29 @@ describe('SlackE2ENotification', () => {
       await command.execute(argsWithInvalidTotalTests);
 
       expect(mockCore.setFailed).toHaveBeenCalledWith('Total tests must be a number');
-      expect(mockFetch).not.toHaveBeenCalled();
+      expect(mockChatPostMessage).not.toHaveBeenCalled();
     });
 
-    it('should fail when webhookUrl is missing', async () => {
-      const argsWithoutWebhookUrl = { ...validArgs, webhookUrl: '' };
+    it('should fail when botToken is missing', async () => {
+      const argsWithoutBotToken = { ...validArgs, botToken: '' };
 
-      await command.execute(argsWithoutWebhookUrl);
+      await command.execute(argsWithoutBotToken);
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith('Slack webhook URL is required');
-      expect(mockFetch).not.toHaveBeenCalled();
+      expect(mockCore.setFailed).toHaveBeenCalledWith('Slack bot token is required');
+      expect(mockChatPostMessage).not.toHaveBeenCalled();
     });
 
-    it('should handle fetch errors gracefully', async () => {
-      mockFetch.mockRejectedValue(new Error('Network error'));
+    it('should fail when channel is missing', async () => {
+      const argsWithoutChannel = { ...validArgs, channel: '' };
+
+      await command.execute(argsWithoutChannel);
+
+      expect(mockCore.setFailed).toHaveBeenCalledWith('Slack channel is required');
+      expect(mockChatPostMessage).not.toHaveBeenCalled();
+    });
+
+    it('should handle Slack API errors gracefully', async () => {
+      mockChatPostMessage.mockRejectedValue(new Error('Network error'));
 
       await command.execute(validArgs);
 
@@ -138,18 +161,16 @@ describe('SlackE2ENotification', () => {
       expect(mockCore.setOutput).toHaveBeenCalledWith('notification-sent', 'false');
     });
 
-    it('should handle non-ok response from Slack', async () => {
-      mockFetch.mockResolvedValue({
+    it('should handle non-ok response from Slack API', async () => {
+      mockChatPostMessage.mockResolvedValue({
         ok: false,
-        status: 400,
-        statusText: 'Bad Request',
-        text: jest.fn().mockResolvedValue('invalid_payload')
-      } as unknown as Response);
+        error: 'channel_not_found'
+      });
 
       await command.execute(validArgs);
 
       expect(mockCore.setFailed).toHaveBeenCalledWith(
-        'Error sending Slack notification: Slack webhook request failed: 400 Bad Request. Response: invalid_payload'
+        'Error sending Slack notification: Slack API request failed: channel_not_found'
       );
       expect(mockCore.setOutput).toHaveBeenCalledWith('notification-sent', 'false');
     });
@@ -159,14 +180,18 @@ describe('SlackE2ENotification', () => {
 
       await command.execute(passArgs);
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        validArgs.webhookUrl,
+      expect(mockChatPostMessage).toHaveBeenCalledWith(
         expect.objectContaining({
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: expect.stringContaining('✅ E2E Test PASSED: E2E Integration Tests')
+          channel: 'general',
+          text: '✅ E2E Test PASSED: E2E Integration Tests',
+          blocks: expect.arrayContaining([
+            expect.objectContaining({
+              type: 'header',
+              text: expect.objectContaining({
+                text: '✅ E2E Test PASSED: E2E Integration Tests'
+              })
+            })
+          ])
         })
       );
     });
@@ -176,14 +201,18 @@ describe('SlackE2ENotification', () => {
 
       await command.execute(failArgs);
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        validArgs.slackAlertWebhookUrl,
+      expect(mockChatPostMessage).toHaveBeenCalledWith(
         expect.objectContaining({
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: expect.stringContaining('❌ E2E Test FAILED: E2E Integration Tests')
+          channel: 'alerts',
+          text: '❌ E2E Test FAILED: E2E Integration Tests',
+          blocks: expect.arrayContaining([
+            expect.objectContaining({
+              type: 'header',
+              text: expect.objectContaining({
+                text: '❌ E2E Test FAILED: E2E Integration Tests'
+              })
+            })
+          ])
         })
       );
     });
@@ -191,14 +220,12 @@ describe('SlackE2ENotification', () => {
     it('should include all provided fields in the message', async () => {
       await command.execute(validArgs);
 
-      const fetchCall = mockFetch.mock.calls[0];
-      const messageBody = JSON.parse(fetchCall[1]?.body as string);
-
-      expect(messageBody.text).toContain('✅ E2E Test PASSED: E2E Integration Tests');
-      expect(messageBody.blocks).toHaveLength(6); // header + section + commit + 3 action buttons
+      const call = mockChatPostMessage.mock.calls[0][0];
+      expect(call.text).toContain('✅ E2E Test PASSED: E2E Integration Tests');
+      expect(call.blocks).toHaveLength(6); // header + section + commit + 3 action buttons
 
       // Check that fields are included
-      const sectionBlock = messageBody.blocks[1];
+      const sectionBlock = call.blocks[1];
       expect(sectionBlock.fields).toEqual(
         expect.arrayContaining([
           expect.objectContaining({ text: '*Test Result:*\nPASS' }),
@@ -216,54 +243,46 @@ describe('SlackE2ENotification', () => {
       );
 
       // Check action buttons
-      const actionBlocks = messageBody.blocks.slice(3);
+      const actionBlocks = call.blocks.slice(3);
       expect(actionBlocks).toHaveLength(3);
       expect(actionBlocks[0].accessory.url).toBe(validArgs.testResultUrl);
       expect(actionBlocks[1].accessory.url).toBe(validArgs.buildUrl);
       expect(actionBlocks[2].accessory.url).toBe(validArgs.sourceUrl);
     });
 
-    it('should use regular webhook for passed tests', async () => {
+    it('should use regular channel for passed tests', async () => {
       const passArgs = { ...validArgs, testResult: 'success' as const };
       await command.execute(passArgs);
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        validArgs.webhookUrl,
+      expect(mockChatPostMessage).toHaveBeenCalledWith(
         expect.objectContaining({
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
+          channel: 'general'
         })
       );
-      expect(mockFetch).not.toHaveBeenCalledWith(validArgs.slackAlertWebhookUrl, expect.any(Object));
     });
 
-    it('should use alert webhook for failed tests when provided', async () => {
+    it('should use alert channel for failed tests when provided', async () => {
       const failArgs = { ...validArgs, testResult: 'failure' as const };
       await command.execute(failArgs);
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        validArgs.slackAlertWebhookUrl,
+      expect(mockChatPostMessage).toHaveBeenCalledWith(
         expect.objectContaining({
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
+          channel: 'alerts'
         })
       );
-      expect(mockFetch).not.toHaveBeenCalledWith(validArgs.webhookUrl, expect.any(Object));
     });
 
-    it('should use regular webhook for failed tests when alert webhook not provided', async () => {
+    it('should use regular channel for failed tests when alert channel not provided', async () => {
       const failArgs = {
         ...validArgs,
         testResult: 'failure' as const,
-        slackAlertWebhookUrl: undefined
+        alertChannel: undefined
       };
       await command.execute(failArgs);
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        validArgs.webhookUrl,
+      expect(mockChatPostMessage).toHaveBeenCalledWith(
         expect.objectContaining({
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
+          channel: 'general'
         })
       );
     });
@@ -277,11 +296,8 @@ describe('SlackE2ENotification', () => {
 
       await command.execute(argsWithChannels);
 
-      const mockCall = mockFetch.mock.calls[0];
-      const requestBody = mockCall[1] as RequestInit;
-      const messageBody = JSON.parse(requestBody.body as string);
-
-      const sectionBlock = messageBody.blocks[1];
+      const call = mockChatPostMessage.mock.calls[0][0];
+      const sectionBlock = call.blocks[1];
       expect(sectionBlock.fields).toEqual(
         expect.arrayContaining([
           expect.objectContaining({ text: '*Slack Channel:*\n#test-channel' }),
@@ -299,11 +315,8 @@ describe('SlackE2ENotification', () => {
 
       await command.execute(argsWithHashChannels);
 
-      const mockCall = mockFetch.mock.calls[0];
-      const requestBody = mockCall[1] as RequestInit;
-      const messageBody = JSON.parse(requestBody.body as string);
-
-      const sectionBlock = messageBody.blocks[1];
+      const call = mockChatPostMessage.mock.calls[0][0];
+      const sectionBlock = call.blocks[1];
       expect(sectionBlock.fields).toEqual(
         expect.arrayContaining([
           expect.objectContaining({ text: '*Slack Channel:*\n#prefixed-channel' }),

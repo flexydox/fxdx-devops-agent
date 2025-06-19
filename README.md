@@ -126,9 +126,9 @@ A powerful GitHub Action for automating your development workflow with Jira, Git
 
 ### Slack Commands
 
-| Subcommand         | Arguments                                                                                                                                                                                                                                                                                                                                                                                                                                                        | Description                                                     | Example                                                                                                                    | Outputs                            |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
-| `e2e-notification` | `testName` (string), `testResult` (string), `totalTests` (number), `webhookUrl` (string), `testResultUrl` (string, optional), `dockerImage` (string, optional), `testFramework` (string, optional), `branch` (string, optional), `commitMessage` (string, optional), `author` (string, optional), `repository` (string, optional), `version` (string, optional), `buildUrl` (string, optional), `buildNumber` (string, optional), `sourceUrl` (string, optional), `slackChannel` (string, optional), `slackAlertChannel` (string, optional), `slackAlertWebhookUrl` (string, optional) | Send formatted E2E test results to a Slack channel via webhook. Supports different webhooks for alerts. | `args: '{ "testName": "E2E Tests", "testResult": "pass", "totalTests": 25, "webhookUrl": "https://hooks.slack.com/...", "slackChannel": "qa", "slackAlertChannel": "alerts" }'` | `notification-sent`, `test-result` |
+| Subcommand         | Arguments                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | Description                                                                                             | Example                                                                                                                                                                         | Outputs                            |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| `e2e-notification` | `testName` (string), `testResult` (string), `totalTests` (number), `botToken` (string), `channel` (string), `alertChannel` (string, optional), `testResultUrl` (string, optional), `dockerImage` (string, optional), `testFramework` (string, optional), `branch` (string, optional), `commitMessage` (string, optional), `author` (string, optional), `repository` (string, optional), `version` (string, optional), `buildUrl` (string, optional), `buildNumber` (string, optional), `sourceUrl` (string, optional), `slackChannel` (string, optional), `slackAlertChannel` (string, optional) | Send formatted E2E test results to a Slack channel via Slack App authentication. Supports different channels for alerts. | `args: '{ "testName": "E2E Tests", "testResult": "pass", "totalTests": 25, "botToken": "${{ secrets.SLACK_BOT_TOKEN }}", "channel": "qa-notifications", "alertChannel": "qa-alerts" }'` | `notification-sent`, `test-result` |
 
 ---
 
@@ -413,15 +413,20 @@ jobs:
       "sourceUrl": "https://github.com/${{ github.repository }}/commit/${{ github.sha }}",
       "slackChannel": "qa-notifications",
       "slackAlertChannel": "qa-alerts",
-      "webhookUrl": "${{ secrets.SLACK_WEBHOOK_URL }}",
-      "slackAlertWebhookUrl": "${{ secrets.SLACK_ALERT_WEBHOOK_URL }}"
+      "botToken": "${{ secrets.SLACK_BOT_TOKEN }}",
+      "channel": "qa-notifications",
+      "alertChannel": "qa-alerts"
     }'
 ```
 
-**New Channel Features:**
-- `slackChannel`: Specifies the primary Slack channel name (displayed in message)
-- `slackAlertChannel`: Specifies the alert channel name (displayed in message)
-- `slackAlertWebhookUrl`: Optional webhook URL for failed tests (uses alert webhook when test fails)
+**Slack App Authentication:**
+
+- Uses Slack App Bot tokens instead of webhooks for authentication
+- Requires a Slack App with `chat:write` permission
+- Supports sending to specific channels based on test results:
+  - Success: Uses the `channel` parameter
+  - Failure: Uses the `alertChannel` parameter (if provided), otherwise falls back to the main channel
+- `slackChannel` and `slackAlertChannel` are display-only fields shown in the notification message
 
 ---
 

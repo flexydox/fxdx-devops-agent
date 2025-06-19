@@ -1,4 +1,5 @@
 import * as core from '@actions/core';
+import { WebClient } from '@slack/web-api';
 import { BaseCommand } from '../base-command.js';
 
 export interface SlackE2ENotificationArgs {
@@ -16,15 +17,17 @@ export interface SlackE2ENotificationArgs {
   buildUrl?: string;
   buildNumber?: string;
   sourceUrl?: string;
-  webhookUrl: string;
+  botToken: string;
+  channel: string;
+  alertChannel?: string;
   slackChannel?: string;
   slackAlertChannel?: string;
-  slackAlertWebhookUrl?: string;
 }
 
 interface SlackMessage {
   text: string;
   blocks: SlackBlock[];
+  channel: string;
 }
 
 interface SlackBlock {
@@ -78,15 +81,25 @@ export class SlackE2ENotification extends BaseCommand<SlackE2ENotificationArgs> 
       return;
     }
 
+    if (!args.botToken) {
+      core.setFailed('Slack bot token is required');
+      return;
+    }
+
+    if (!args.channel) {
+      core.setFailed('Slack channel is required');
+      return;
+    }
+
     core.debug(`Sending Slack notification for test: ${args.testName}`);
     core.debug(`Test result: ${args.testResult}`);
     core.debug(`Total tests: ${args.totalTests}`);
 
     try {
-      // Choose the appropriate webhook URL based on test result and availability
-      const webhookUrl = this.getWebhookUrl(args);
-      const message = this.buildSlackMessage(args);
-      await this.sendSlackMessage(webhookUrl, message);
+      // Choose the appropriate channel based on test result and availability
+      const targetChannel = this.getTargetChannel(args);
+      const message = this.buildSlackMessage(args, targetChannel);
+      await this.sendSlackMessage(args.botToken, message);
 
       core.info(`Successfully sent Slack notification for E2E test: ${args.testName}`);
       core.setOutput('notification-sent', 'true');
@@ -98,18 +111,18 @@ export class SlackE2ENotification extends BaseCommand<SlackE2ENotificationArgs> 
     }
   }
 
-  private getWebhookUrl(args: SlackE2ENotificationArgs): string {
-    // If test failed and alert webhook URL is provided, use the alert webhook
-    if (args.testResult === 'failure' && args.slackAlertWebhookUrl) {
-      core.debug('Using alert webhook URL for failed test');
-      return args.slackAlertWebhookUrl;
+  private getTargetChannel(args: SlackE2ENotificationArgs): string {
+    // If test failed and alert channel is provided, use the alert channel
+    if (args.testResult === 'failure' && args.alertChannel) {
+      core.debug('Using alert channel for failed test');
+      return args.alertChannel;
     }
 
-    // Otherwise, use the default webhook URL
-    return args.webhookUrl;
+    // Otherwise, use the default channel
+    return args.channel;
   }
 
-  private buildSlackMessage(args: SlackE2ENotificationArgs): SlackMessage {
+  private buildSlackMessage(args: SlackE2ENotificationArgs, targetChannel: string): SlackMessage {
     const emoji = args.testResult === 'success' ? '✅' : '❌';
     const status = args.testResult === 'success' ? 'PASSED' : 'FAILED';
 
@@ -118,7 +131,7 @@ export class SlackE2ENotification extends BaseCommand<SlackE2ENotificationArgs> 
     const fields: Array<{ type: string; text: string }> = [
       {
         type: 'mrkdwn',
-        text: `*Test Result:*\n${args.testResult.toUpperCase()}`
+        text: `*Test Result:*\n${args.testResult === 'success' ? 'PASS' : 'FAIL'}`
       }
     ];
 
@@ -278,27 +291,25 @@ export class SlackE2ENotification extends BaseCommand<SlackE2ENotificationArgs> 
 
     return {
       text: headerText,
-      blocks: blocks
+      blocks: blocks,
+      channel: targetChannel
     };
   }
 
-  private async sendSlackMessage(webhookUrl: string, message: SlackMessage): Promise<void> {
-    core.debug(`Sending message to Slack webhook: ${webhookUrl.substring(0, 50)}...`);
+  private async sendSlackMessage(botToken: string, message: SlackMessage): Promise<void> {
+    const client = new WebClient(botToken);
+
+    core.debug(`Sending message to Slack channel: ${message.channel}`);
     core.debug(`Message preview: ${message.text}`);
 
-    const response = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(message)
+    const result = await client.chat.postMessage({
+      channel: message.channel,
+      text: message.text,
+      blocks: message.blocks
     });
 
-    if (!response.ok) {
-      const responseText = await response.text();
-      throw new Error(
-        `Slack webhook request failed: ${response.status} ${response.statusText}. Response: ${responseText}`
-      );
+    if (!result.ok) {
+      throw new Error(`Slack API request failed: ${result.error}`);
     }
 
     core.debug('Slack message sent successfully');
