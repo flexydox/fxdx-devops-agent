@@ -55,7 +55,6 @@ describe('SlackE2ENotification', () => {
       buildNumber: '123',
       sourceUrl: 'https://github.com/my-org/my-app',
       botToken: 'xoxb-test-slack-bot-token',
-      channel: 'general',
       alertChannel: 'alerts',
       slackChannel: 'general',
       slackAlertChannel: 'alerts'
@@ -87,7 +86,7 @@ describe('SlackE2ENotification', () => {
         testResult: 'failure',
         totalTests: 1,
         botToken: 'xoxb-test-slack-bot-token',
-        channel: 'general'
+        slackChannel: 'general'
       };
 
       await command.execute(minimalArgs);

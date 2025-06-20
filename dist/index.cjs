@@ -66549,7 +66549,7 @@ class SlackE2ENotification extends BaseCommand {
             coreExports.setFailed('Slack bot token is required');
             return;
         }
-        if (!args.channel) {
+        if (!args.slackChannel) {
             coreExports.setFailed('Slack channel is required');
             return;
         }
@@ -66578,7 +66578,7 @@ class SlackE2ENotification extends BaseCommand {
             return args.alertChannel;
         }
         // Otherwise, use the default channel
-        return args.channel;
+        return args.slackChannel;
     }
     buildSlackMessage(args, targetChannel) {
         const emoji = args.testResult === 'success' ? '✅' : '❌';
@@ -66636,18 +66636,6 @@ class SlackE2ENotification extends BaseCommand {
             fields.push({
                 type: 'mrkdwn',
                 text: `*Build Number:*\n${args.buildNumber}`
-            });
-        }
-        if (args.slackChannel) {
-            fields.push({
-                type: 'mrkdwn',
-                text: `*Slack Channel:*\n#${args.slackChannel.replace(/^#/, '')}`
-            });
-        }
-        if (args.slackAlertChannel) {
-            fields.push({
-                type: 'mrkdwn',
-                text: `*Alert Channel:*\n#${args.slackAlertChannel.replace(/^#/, '')}`
             });
         }
         const blocks = [
@@ -66737,6 +66725,7 @@ class SlackE2ENotification extends BaseCommand {
         const client = new distExports.WebClient(botToken);
         coreExports.debug(`Sending message to Slack channel: ${message.channel}`);
         coreExports.debug(`Message preview: ${message.text}`);
+        coreExports.debug(`Blocks: ${JSON.stringify(message.blocks, null, 2)}`);
         const result = await client.chat.postMessage({
             channel: message.channel,
             text: message.text,
