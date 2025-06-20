@@ -18,9 +18,8 @@ export interface SlackE2ENotificationArgs {
   buildNumber?: string;
   sourceUrl?: string;
   botToken: string;
-  channel: string;
   alertChannel?: string;
-  slackChannel?: string;
+  slackChannel: string;
   slackAlertChannel?: string;
 }
 
@@ -86,7 +85,7 @@ export class SlackE2ENotification extends BaseCommand<SlackE2ENotificationArgs> 
       return;
     }
 
-    if (!args.channel) {
+    if (!args.slackChannel) {
       core.setFailed('Slack channel is required');
       return;
     }
@@ -119,7 +118,7 @@ export class SlackE2ENotification extends BaseCommand<SlackE2ENotificationArgs> 
     }
 
     // Otherwise, use the default channel
-    return args.channel;
+    return args.slackChannel;
   }
 
   private buildSlackMessage(args: SlackE2ENotificationArgs, targetChannel: string): SlackMessage {
@@ -188,20 +187,6 @@ export class SlackE2ENotification extends BaseCommand<SlackE2ENotificationArgs> 
       fields.push({
         type: 'mrkdwn',
         text: `*Build Number:*\n${args.buildNumber}`
-      });
-    }
-
-    if (args.slackChannel) {
-      fields.push({
-        type: 'mrkdwn',
-        text: `*Slack Channel:*\n#${args.slackChannel.replace(/^#/, '')}`
-      });
-    }
-
-    if (args.slackAlertChannel) {
-      fields.push({
-        type: 'mrkdwn',
-        text: `*Alert Channel:*\n#${args.slackAlertChannel.replace(/^#/, '')}`
       });
     }
 
@@ -301,7 +286,7 @@ export class SlackE2ENotification extends BaseCommand<SlackE2ENotificationArgs> 
 
     core.debug(`Sending message to Slack channel: ${message.channel}`);
     core.debug(`Message preview: ${message.text}`);
-
+    core.debug(`Blocks: ${JSON.stringify(message.blocks, null, 2)}`);
     const result = await client.chat.postMessage({
       channel: message.channel,
       text: message.text,
