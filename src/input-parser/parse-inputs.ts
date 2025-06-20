@@ -20,6 +20,7 @@ export function parseInputs(): ParsedInputs {
       core.debug(`Raw args string: ${argsString}`);
       core.debug(`Command: ${command}`);
       core.debug(`Subcommand: ${subcommand}`);
+      throw new Error('Invalid args format. Expected a JSON string.');
     }
   }
   return { command, subcommand, args };
