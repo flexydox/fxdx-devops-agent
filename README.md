@@ -1,4 +1,8 @@
-# DevOps Agent ![Marketplace](https://img.shields.i### Environment Variables - Github related
+# DevOps Agent ![Marketplace](https://img.shields.i###
+
+A powerful GitHub Action for automating your development workflow with Jira, GitHub, and versioning operations. Supports advanced PR validation, Jira issue management, and more.
+
+### Environment Variables - Github related
 
 - `GITHUB_REPOSITORY`: The repository in the format `owner/repo` (automatically set by GitHub Actions).
 - `GITHUB_TOKEN`: The token used for GitHub API authentication (automatically set by GitHub Actions).
@@ -21,20 +25,26 @@
   - **Required for**: `github pr-commenter` command when using AI validation
   - **Optional**: Not needed for basic GitHub or Jira operationsketplace-GitHub%20Actions-blue?logo=github) ![License](https://img.shields.io/github/license/flexydox/fxdx-devops-agent)
 
-A powerful GitHub Action for automating your development workflow with Jira, GitHub, and versioning operations. Supports advanced PR validation, Jira issue management, and more.
+### Environment Variables - Slack related
+
+- `SLACK_BOT_TOKEN`: Slack bot token for sending notifications.
+  - **Required for**: `slack` command group
+  - **How to get**: Create a Slack app and install it to your workspace
 
 ---
 
 ## Table of Contents
 
-- [DevOps Agent !\[Marketplace\](https://img.shields.i### Environment Variables - Github related](#devops-agent-marketplacehttpsimgshieldsi-environment-variables---github-related)
+- [DevOps Agent !\[Marketplace\](https://img.shields.i###](#devops-agent-marketplacehttpsimgshieldsi)
+  - [Environment Variables - Github related](#environment-variables---github-related)
   - [Environment Variables - Jira related](#environment-variables---jira-related)
   - [Environment Variables - AI related](#environment-variables---ai-related)
+  - [Environment Variables - Slack related](#environment-variables---slack-related)
   - [Table of Contents](#table-of-contents)
   - [Features](#features)
   - [Commands \& Arguments](#commands--arguments)
     - [~Common Arguments](#common-arguments)
-    - [Environment Variables - Github related](#environment-variables---github-related)
+    - [Environment Variables - Github related](#environment-variables---github-related-1)
     - [Environment Variables - Jira related](#environment-variables---jira-related-1)
     - [Environment Variables - AI related](#environment-variables---ai-related-1)
     - [Jira Commands](#jira-commands)
@@ -53,8 +63,8 @@ A powerful GitHub Action for automating your development workflow with Jira, Git
     - [Get commit information](#get-commit-information)
     - [Assign Jira issues to a release](#assign-jira-issues-to-a-release)
     - [Update Jira issue labels](#update-jira-issue-labels)
-    - [Send Slack notification for E2E test results](#send-slack-notification-for-e2e-test-results)
     - [Complete workflow example](#complete-workflow-example)
+    - [Send Slack notification for E2E test results](#send-slack-notification-for-e2e-test-results)
   - [Development](#development)
   - [License](#license)
 
@@ -413,7 +423,6 @@ jobs:
       "sourceUrl": "https://github.com/${{ github.repository }}/commit/${{ github.sha }}",
       "slackChannel": "qa-notifications",
       "slackAlertChannel": "qa-alerts",
-      "botToken": "${{ secrets.SLACK_BOT_TOKEN }}",
       "channel": "qa-notifications",
       "alertChannel": "qa-alerts"
     }'
