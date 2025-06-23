@@ -66545,8 +66545,9 @@ class SlackE2ENotification extends BaseCommand {
             coreExports.setFailed('Total tests must be a number');
             return;
         }
-        if (!args.botToken) {
-            coreExports.setFailed('Slack bot token is required');
+        const botToken = process.env.SLACK_BOT_TOKEN;
+        if (!botToken) {
+            coreExports.setFailed('SLACK_BOT_TOKEN environment variable is required');
             return;
         }
         if (!args.slackChannel) {
@@ -66560,7 +66561,7 @@ class SlackE2ENotification extends BaseCommand {
             // Choose the appropriate channel based on test result and availability
             const targetChannel = this.getTargetChannel(args);
             const message = this.buildSlackMessage(args, targetChannel);
-            await this.sendSlackMessage(args.botToken, message);
+            await this.sendSlackMessage(botToken, message);
             coreExports.info(`Successfully sent Slack notification for E2E test: ${args.testName}`);
             coreExports.setOutput('notification-sent', 'true');
             coreExports.setOutput('test-result', args.testResult);

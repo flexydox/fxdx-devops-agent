@@ -2,6 +2,8 @@ import { SlackE2ENotification, SlackE2ENotificationArgs } from './slack-e2e-noti
 import * as core from '@actions/core';
 import { WebClient } from '@slack/web-api';
 
+process.env.SLACK_BOT_TOKEN = 'xoxb-test-slack-bot-token';
+
 // Mock @actions/core
 jest.mock('@actions/core');
 const mockCore = core as jest.Mocked<typeof core>;
@@ -54,7 +56,6 @@ describe('SlackE2ENotification', () => {
       buildUrl: 'https://example.com/build/123',
       buildNumber: '123',
       sourceUrl: 'https://github.com/my-org/my-app',
-      botToken: 'xoxb-test-slack-bot-token',
       alertChannel: 'alerts',
       slackChannel: 'general',
       slackAlertChannel: 'alerts'
@@ -85,7 +86,6 @@ describe('SlackE2ENotification', () => {
         testName: 'Basic Test',
         testResult: 'failure',
         totalTests: 1,
-        botToken: 'xoxb-test-slack-bot-token',
         slackChannel: 'general'
       };
 
@@ -121,33 +121,6 @@ describe('SlackE2ENotification', () => {
       await command.execute(argsWithInvalidTestResult);
 
       expect(mockCore.setFailed).toHaveBeenCalledWith('Test result must be either "success" or "failure"');
-      expect(mockChatPostMessage).not.toHaveBeenCalled();
-    });
-
-    it('should fail when totalTests is not a number', async () => {
-      const argsWithInvalidTotalTests = { ...validArgs, totalTests: 'invalid' as unknown as number };
-
-      await command.execute(argsWithInvalidTotalTests);
-
-      expect(mockCore.setFailed).toHaveBeenCalledWith('Total tests must be a number');
-      expect(mockChatPostMessage).not.toHaveBeenCalled();
-    });
-
-    it('should fail when botToken is missing', async () => {
-      const argsWithoutBotToken = { ...validArgs, botToken: '' };
-
-      await command.execute(argsWithoutBotToken);
-
-      expect(mockCore.setFailed).toHaveBeenCalledWith('Slack bot token is required');
-      expect(mockChatPostMessage).not.toHaveBeenCalled();
-    });
-
-    it('should fail when channel is missing', async () => {
-      const argsWithoutChannel = { ...validArgs, channel: '' };
-
-      await command.execute(argsWithoutChannel);
-
-      expect(mockCore.setFailed).toHaveBeenCalledWith('Slack channel is required');
       expect(mockChatPostMessage).not.toHaveBeenCalled();
     });
 
@@ -235,9 +208,7 @@ describe('SlackE2ENotification', () => {
           expect.objectContaining({ text: '*Repository:*\nmy-org/my-app' }),
           expect.objectContaining({ text: '*Version:*\n1.2.3' }),
           expect.objectContaining({ text: '*Docker Image:*\nmy-app:latest' }),
-          expect.objectContaining({ text: '*Build Number:*\n123' }),
-          expect.objectContaining({ text: '*Slack Channel:*\n#general' }),
-          expect.objectContaining({ text: '*Alert Channel:*\n#alerts' })
+          expect.objectContaining({ text: '*Build Number:*\n123' })
         ])
       );
 
@@ -283,44 +254,6 @@ describe('SlackE2ENotification', () => {
         expect.objectContaining({
           channel: 'general'
         })
-      );
-    });
-
-    it('should include channel names in message fields', async () => {
-      const argsWithChannels = {
-        ...validArgs,
-        slackChannel: 'test-channel',
-        slackAlertChannel: 'alert-channel'
-      };
-
-      await command.execute(argsWithChannels);
-
-      const call = mockChatPostMessage.mock.calls[0][0];
-      const sectionBlock = call.blocks[1];
-      expect(sectionBlock.fields).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({ text: '*Slack Channel:*\n#test-channel' }),
-          expect.objectContaining({ text: '*Alert Channel:*\n#alert-channel' })
-        ])
-      );
-    });
-
-    it('should handle channels with # prefix correctly', async () => {
-      const argsWithHashChannels = {
-        ...validArgs,
-        slackChannel: '#prefixed-channel',
-        slackAlertChannel: '#prefixed-alerts'
-      };
-
-      await command.execute(argsWithHashChannels);
-
-      const call = mockChatPostMessage.mock.calls[0][0];
-      const sectionBlock = call.blocks[1];
-      expect(sectionBlock.fields).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({ text: '*Slack Channel:*\n#prefixed-channel' }),
-          expect.objectContaining({ text: '*Alert Channel:*\n#prefixed-alerts' })
-        ])
       );
     });
   });

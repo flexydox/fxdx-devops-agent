@@ -17,7 +17,6 @@ export interface SlackE2ENotificationArgs {
   buildUrl?: string;
   buildNumber?: string;
   sourceUrl?: string;
-  botToken: string;
   alertChannel?: string;
   slackChannel: string;
   slackAlertChannel?: string;
@@ -80,11 +79,12 @@ export class SlackE2ENotification extends BaseCommand<SlackE2ENotificationArgs> 
       return;
     }
 
-    if (!args.botToken) {
-      core.setFailed('Slack bot token is required');
+    const botToken = process.env.SLACK_BOT_TOKEN;
+
+    if (!botToken) {
+      core.setFailed('SLACK_BOT_TOKEN environment variable is required');
       return;
     }
-
     if (!args.slackChannel) {
       core.setFailed('Slack channel is required');
       return;
@@ -98,7 +98,7 @@ export class SlackE2ENotification extends BaseCommand<SlackE2ENotificationArgs> 
       // Choose the appropriate channel based on test result and availability
       const targetChannel = this.getTargetChannel(args);
       const message = this.buildSlackMessage(args, targetChannel);
-      await this.sendSlackMessage(args.botToken, message);
+      await this.sendSlackMessage(botToken, message);
 
       core.info(`Successfully sent Slack notification for E2E test: ${args.testName}`);
       core.setOutput('notification-sent', 'true');

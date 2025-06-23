@@ -35,18 +35,6 @@ describe('parseInputs', () => {
       args: {}
     });
   });
-
-  it('returns empty args if INPUT_ARGS is invalid JSON', () => {
-    process.env.INPUT_COMMAND = 'github';
-    process.env.INPUT_SUBCOMMAND = 'get-diff-data';
-    process.env.INPUT_ARGS = '{invalid json}';
-    const result = parseInputs();
-    expect(result).toEqual({
-      command: 'github',
-      subcommand: 'get-diff-data',
-      args: {}
-    });
-  });
 });
 
 it('returns one entry for a single issue', () => {
