@@ -6,6 +6,7 @@ export interface SlackE2ENotificationArgs {
   testName: string;
   testResult: 'success' | 'failure';
   totalTests: number;
+  slackChannel: string;
   testResultUrl?: string;
   dockerImage?: string;
   testFramework?: string;
@@ -17,15 +18,12 @@ export interface SlackE2ENotificationArgs {
   buildUrl?: string;
   buildNumber?: string;
   sourceUrl?: string;
-  alertChannel?: string;
-  slackChannel: string;
   slackAlertChannel?: string;
 }
 
 interface SlackMessage {
   text: string;
   blocks: SlackBlock[];
-  channel: string;
 }
 
 interface SlackBlock {
@@ -95,10 +93,13 @@ export class SlackE2ENotification extends BaseCommand<SlackE2ENotificationArgs> 
     core.debug(`Total tests: ${args.totalTests}`);
 
     try {
-      // Choose the appropriate channel based on test result and availability
-      const targetChannel = this.getTargetChannel(args);
-      const message = this.buildSlackMessage(args, targetChannel);
-      await this.sendSlackMessage(botToken, message);
+      const message = this.buildSlackMessage(args);
+      if (args.testResult === 'failure' && args.slackAlertChannel) {
+        core.debug(`Sending alert on failure to Slack channel: ${args.slackAlertChannel}`);
+        await this.sendSlackMessage(botToken, message, args.slackAlertChannel);
+      }
+      core.debug(`Sending notification to Slack channel: ${args.slackChannel}`);
+      await this.sendSlackMessage(botToken, message, args.slackChannel);
 
       core.info(`Successfully sent Slack notification for E2E test: ${args.testName}`);
       core.setOutput('notification-sent', 'true');
@@ -110,18 +111,7 @@ export class SlackE2ENotification extends BaseCommand<SlackE2ENotificationArgs> 
     }
   }
 
-  private getTargetChannel(args: SlackE2ENotificationArgs): string {
-    // If test failed and alert channel is provided, use the alert channel
-    if (args.testResult === 'failure' && args.alertChannel) {
-      core.debug('Using alert channel for failed test');
-      return args.alertChannel;
-    }
-
-    // Otherwise, use the default channel
-    return args.slackChannel;
-  }
-
-  private buildSlackMessage(args: SlackE2ENotificationArgs, targetChannel: string): SlackMessage {
+  private buildSlackMessage(args: SlackE2ENotificationArgs): SlackMessage {
     const emoji = args.testResult === 'success' ? '✅' : '❌';
     const status = args.testResult === 'success' ? 'PASSED' : 'FAILED';
 
@@ -276,19 +266,18 @@ export class SlackE2ENotification extends BaseCommand<SlackE2ENotificationArgs> 
 
     return {
       text: headerText,
-      blocks: blocks,
-      channel: targetChannel
+      blocks: blocks
     };
   }
 
-  private async sendSlackMessage(botToken: string, message: SlackMessage): Promise<void> {
+  private async sendSlackMessage(botToken: string, message: SlackMessage, targetChannel: string): Promise<void> {
     const client = new WebClient(botToken);
 
-    core.debug(`Sending message to Slack channel: ${message.channel}`);
+    core.debug(`Sending message to Slack channel: ${targetChannel}`);
     core.debug(`Message preview: ${message.text}`);
     core.debug(`Blocks: ${JSON.stringify(message.blocks, null, 2)}`);
     const result = await client.chat.postMessage({
-      channel: message.channel,
+      channel: targetChannel,
       text: message.text,
       blocks: message.blocks
     });

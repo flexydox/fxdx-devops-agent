@@ -56,7 +56,6 @@ describe('SlackE2ENotification', () => {
       buildUrl: 'https://example.com/build/123',
       buildNumber: '123',
       sourceUrl: 'https://github.com/my-org/my-app',
-      alertChannel: 'alerts',
       slackChannel: 'general',
       slackAlertChannel: 'alerts'
     };

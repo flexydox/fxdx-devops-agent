@@ -66558,10 +66558,13 @@ class SlackE2ENotification extends BaseCommand {
         coreExports.debug(`Test result: ${args.testResult}`);
         coreExports.debug(`Total tests: ${args.totalTests}`);
         try {
-            // Choose the appropriate channel based on test result and availability
-            const targetChannel = this.getTargetChannel(args);
-            const message = this.buildSlackMessage(args, targetChannel);
-            await this.sendSlackMessage(botToken, message);
+            const message = this.buildSlackMessage(args);
+            if (args.testResult === 'failure' && args.slackAlertChannel) {
+                coreExports.debug(`Sending alert on failure to Slack channel: ${args.slackAlertChannel}`);
+                await this.sendSlackMessage(botToken, message, args.slackAlertChannel);
+            }
+            coreExports.debug(`Sending notification to Slack channel: ${args.slackChannel}`);
+            await this.sendSlackMessage(botToken, message, args.slackChannel);
             coreExports.info(`Successfully sent Slack notification for E2E test: ${args.testName}`);
             coreExports.setOutput('notification-sent', 'true');
             coreExports.setOutput('test-result', args.testResult);
@@ -66572,16 +66575,7 @@ class SlackE2ENotification extends BaseCommand {
             coreExports.setOutput('notification-sent', 'false');
         }
     }
-    getTargetChannel(args) {
-        // If test failed and alert channel is provided, use the alert channel
-        if (args.testResult === 'failure' && args.alertChannel) {
-            coreExports.debug('Using alert channel for failed test');
-            return args.alertChannel;
-        }
-        // Otherwise, use the default channel
-        return args.slackChannel;
-    }
-    buildSlackMessage(args, targetChannel) {
+    buildSlackMessage(args) {
         const emoji = args.testResult === 'success' ? '✅' : '❌';
         const status = args.testResult === 'success' ? 'PASSED' : 'FAILED';
         const headerText = `${emoji} E2E Test ${status}: ${args.testName}`;
@@ -66718,17 +66712,16 @@ class SlackE2ENotification extends BaseCommand {
         blocks.push(...actionButtons);
         return {
             text: headerText,
-            blocks: blocks,
-            channel: targetChannel
+            blocks: blocks
         };
     }
-    async sendSlackMessage(botToken, message) {
+    async sendSlackMessage(botToken, message, targetChannel) {
         const client = new distExports.WebClient(botToken);
-        coreExports.debug(`Sending message to Slack channel: ${message.channel}`);
+        coreExports.debug(`Sending message to Slack channel: ${targetChannel}`);
         coreExports.debug(`Message preview: ${message.text}`);
         coreExports.debug(`Blocks: ${JSON.stringify(message.blocks, null, 2)}`);
         const result = await client.chat.postMessage({
-            channel: message.channel,
+            channel: targetChannel,
             text: message.text,
             blocks: message.blocks
         });
