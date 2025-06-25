@@ -12,7 +12,9 @@ const mockGetGitHubClient = getGitHubClient as jest.MockedFunction<typeof getGit
 
 describe('CommitInfo', () => {
   let command: CommitInfo;
-  let mockClient: any;
+  let mockClient: {
+    getCommit: jest.MockedFunction<(...args: unknown[]) => Promise<unknown>>;
+  };
 
   beforeEach(() => {
     command = new CommitInfo();
@@ -21,7 +23,7 @@ describe('CommitInfo', () => {
     mockClient = {
       getCommit: jest.fn()
     };
-    mockGetGitHubClient.mockReturnValue(mockClient);
+    mockGetGitHubClient.mockReturnValue(mockClient as any);
 
     // Set environment variables
     process.env.GITHUB_REPOSITORY = 'owner/repo';
@@ -101,10 +103,7 @@ describe('CommitInfo', () => {
         'message-original',
         'fix: remove\x00null bytes\x01 but keep 🚀 emoji'
       );
-      expect(mockCore.setOutput).toHaveBeenCalledWith(
-        'message',
-        'fix: remove null bytes  but keep 🚀 emoji'
-      );
+      expect(mockCore.setOutput).toHaveBeenCalledWith('message', 'fix: remove null bytes  but keep 🚀 emoji');
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
