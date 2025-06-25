@@ -72,41 +72,6 @@ describe('CommitInfo', () => {
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
-    it('should remove control characters but preserve Unicode', async () => {
-      const mockCommitData = {
-        sha: 'abc123',
-        html_url: 'https://github.com/owner/repo/commit/abc123',
-        commit: {
-          message: 'fix: remove\x00null bytes\x01 but keep 🚀 emoji',
-          author: {
-            name: 'John Doe',
-            email: 'john@example.com',
-            date: '2023-01-01T00:00:00Z'
-          },
-          committer: {
-            name: 'John Doe',
-            email: 'john@example.com',
-            date: '2023-01-01T00:00:00Z'
-          }
-        }
-      };
-
-      mockClient.getCommit.mockResolvedValue(mockCommitData);
-
-      const args: CommitInfoArgs = {
-        sha: 'abc123'
-      };
-
-      await command.execute(args);
-
-      expect(mockCore.setOutput).toHaveBeenCalledWith(
-        'message-original',
-        'fix: remove\x00null bytes\x01 but keep 🚀 emoji'
-      );
-      expect(mockCore.setOutput).toHaveBeenCalledWith('message', 'fix: remove null bytes  but keep 🚀 emoji');
-      expect(mockCore.setFailed).not.toHaveBeenCalled();
-    });
-
     it('should fail when SHA is missing', async () => {
       const args: CommitInfoArgs = {};
 

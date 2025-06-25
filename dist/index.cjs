@@ -27365,15 +27365,17 @@ function inferIssues(text, issuePattern) {
     return issuesList;
 }
 function sanitizeNonPrintableChars(input, replaceWith) {
-    // Remove control characters that can cause issues in Slack/display
-    // - Remove NULL, SOH-BS (0x00-0x08)
-    // - Remove VT, FF (0x0B, 0x0C) - vertical tab, form feed
-    // - Remove SO-US (0x0E-0x1F) - various control characters
-    // - Remove DEL and C1 controls (0x7F-0x9F)
-    // - Convert CR to space (0x0D) for consistent line endings
-    // - Preserve TAB (0x09) and LF (0x0A) as they're useful for formatting
-    // eslint-disable-next-line no-control-regex
-    return input.replace(/[\x00-\x08\x0B\x0C-\x0D\x0E-\x1F\x7F-\x9F]+/g, replaceWith);
+    if (!input) {
+        return '';
+    }
+    return (input
+        .replaceAll('\r', '')
+        .replaceAll('\n', '|')
+        // eslint-disable-next-line no-control-regex
+        .replace(/[\x00-\x08\x0B\x0C-\x1F\x7F-\x9F]+/g, replaceWith)
+        .replace(/\s+/g, ' ')
+        .replace(/\|+/g, '|')
+        .trim());
 }
 
 var dist$4 = {exports: {}};

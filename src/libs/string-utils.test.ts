@@ -41,16 +41,15 @@ describe('sanitizeNonPrintableChars', () => {
     expect(result).toBe('テスト 测试 테스트');
   });
 
-  it('should remove carriage returns but preserve line feeds', () => {
-    const input = 'Line 1\r\nLine 2\nLine 3';
-    const result = sanitizeNonPrintableChars(input, ' ');
-    expect(result).toBe('Line 1 \nLine 2\nLine 3'); // \r is replaced with space, \n is preserved
-  });
+  it('should replace newline characters with spaces', () => {
+    const input = `
+    line 1
+    line 2
 
-  it('should preserve tab characters', () => {
-    const input = 'Column1\tColumn2\tColumn3';
+    line 3`;
+
     const result = sanitizeNonPrintableChars(input, ' ');
-    expect(result).toBe('Column1\tColumn2\tColumn3'); // tabs are preserved
+    expect(result).toBe('| line 1| line 2| line 3'); // newlines replaced with spaces
   });
 });
 
