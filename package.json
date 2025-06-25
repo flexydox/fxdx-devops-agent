@@ -39,7 +39,7 @@
     "@actions/github": "^6.0.1",
     "@slack/web-api": "^7.9.2",
     "md-to-adf": "^0.6.4",
-    "openai": "^4.97.0",
+    "openai": "^5.7.0",
     "semver-parser": "^4.1.8",
     "transliteration": "^2.3.5"
   },
