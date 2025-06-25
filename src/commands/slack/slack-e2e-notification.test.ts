@@ -188,6 +188,32 @@ describe('SlackE2ENotification', () => {
       );
     });
 
+    it('should handle commit messages with Unicode characters correctly', async () => {
+      const argsWithUnicode: SlackE2ENotificationArgs = {
+        testName: 'Unicode Test',
+        testResult: 'success',
+        totalTests: 1,
+        slackChannel: 'general',
+        commitMessage: 'feat: add new feature 🚀 with café and naïve résumé テスト'
+      };
+
+      await command.execute(argsWithUnicode);
+
+      expect(mockChatPostMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          channel: 'general',
+          blocks: expect.arrayContaining([
+            expect.objectContaining({
+              type: 'section',
+              text: expect.objectContaining({
+                text: '*Commit Message:*\nfeat: add new feature 🚀 with café and naïve résumé テスト'
+              })
+            })
+          ])
+        })
+      );
+    });
+
     it('should include all provided fields in the message', async () => {
       await command.execute(validArgs);
 
