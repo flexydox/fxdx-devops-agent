@@ -33,6 +33,7 @@ export function sanitizeNonPrintableChars(input: string, replaceWith: string): s
       // eslint-disable-next-line no-control-regex
       .replace(/[\x00-\x08\x0B\x0C-\x1F\x7F-\x9F]+/g, replaceWith)
       .replace(/\s+/g, ' ')
+      .replaceAll('"', '')
       .replace(/\|+/g, '|')
       .trim()
   );

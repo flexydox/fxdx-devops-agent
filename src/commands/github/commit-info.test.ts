@@ -23,6 +23,7 @@ describe('CommitInfo', () => {
     mockClient = {
       getCommit: jest.fn()
     };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     mockGetGitHubClient.mockReturnValue(mockClient as any);
 
     // Set environment variables
@@ -39,7 +40,7 @@ describe('CommitInfo', () => {
         sha: 'abc123',
         html_url: 'https://github.com/owner/repo/commit/abc123',
         commit: {
-          message: 'feat: add new feature 🚀 with café and naïve résumé テスト',
+          message: 'feat: add new feature 🚀 with "café" and naïve résumé テスト',
           author: {
             name: 'John Doe',
             email: 'john@example.com',
@@ -63,11 +64,11 @@ describe('CommitInfo', () => {
 
       expect(mockCore.setOutput).toHaveBeenCalledWith(
         'message-original',
-        'feat: add new feature 🚀 with café and naïve résumé テスト'
+        'feat: add new feature 🚀 with "café" and naïve résumé テスト'
       );
       expect(mockCore.setOutput).toHaveBeenCalledWith(
         'message',
-        'feat: add new feature 🚀 with café and naïve résumé テスト'
+        'feat: add new feature 🚀 with "café" and naïve résumé テスト'
       );
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });

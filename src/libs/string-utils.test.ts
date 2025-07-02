@@ -51,6 +51,11 @@ describe('sanitizeNonPrintableChars', () => {
     const result = sanitizeNonPrintableChars(input, ' ');
     expect(result).toBe('| line 1| line 2| line 3'); // newlines replaced with spaces
   });
+  it('should replace double quotes with empty string', () => {
+    const input = 'This is a "test" string';
+    const result = sanitizeNonPrintableChars(input, ' ');
+    expect(result).toBe('This is a test string'); // double quotes removed
+  });
 });
 
 describe('transliterateText', () => {
