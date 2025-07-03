@@ -1,4 +1,5 @@
 import { getIssues } from '../../libs/jira/api/index.js';
+import { JiraIssue } from '../../libs/jira/types/jira-issue.js';
 import { CommandArgs } from '../../types/command-types.js';
 import { BaseCommand } from '../base-command.js';
 import * as core from '@actions/core';
@@ -6,7 +7,7 @@ import * as core from '@actions/core';
 export interface EachIssueOptions {
   applyToParent?: boolean;
   applyToSubtasks?: boolean;
-  callback?: (issueKey: string) => Promise<void>;
+  callback?: (issueKey: string, issue: JiraIssue) => Promise<void>;
 }
 
 export abstract class BaseJiraCommand<TArgs extends CommandArgs> extends BaseCommand<TArgs> {
@@ -24,7 +25,7 @@ export abstract class BaseJiraCommand<TArgs extends CommandArgs> extends BaseCom
     await Promise.all(
       jiraIssues.map(async (issue) => {
         try {
-          await callback(issue.key);
+          await callback(issue.key, issue);
         } catch (error) {
           console.error(`Error processing issue ${issue.key}:`, error);
         }

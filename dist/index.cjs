@@ -27374,6 +27374,7 @@ function sanitizeNonPrintableChars(input, replaceWith) {
         // eslint-disable-next-line no-control-regex
         .replace(/[\x00-\x08\x0B\x0C-\x1F\x7F-\x9F]+/g, replaceWith)
         .replace(/\s+/g, ' ')
+        .replaceAll('"', '')
         .replace(/\|+/g, '|')
         .trim());
 }
@@ -34297,7 +34298,7 @@ class BaseJiraCommand extends BaseCommand {
         });
         await Promise.all(jiraIssues.map(async (issue) => {
             try {
-                await callback(issue.key);
+                await callback(issue.key, issue);
             }
             catch (error) {
                 console.error(`Error processing issue ${issue.key}:`, error);
@@ -40806,10 +40807,25 @@ class JiraUpdateStatus extends BaseJiraCommand {
         await this.eachIssue(issues, {
             applyToParent: args.applyToParent ?? false,
             applyToSubtasks: args.applyToSubtasks ?? true,
-            callback: async (issue) => {
-                await updateJiraStatus(issue, targetStatus);
+            callback: async (issueKey, issue) => {
+                const currentStatus = issue.fields.status;
+                const currentStatusName = currentStatus?.name ?? 'Unknown';
+                const currentStatusCategory = currentStatus?.statusCategory?.key || 'unknown';
+                coreExports.info(`Current status of issue ${issueKey} is ${currentStatusName} [${currentStatusCategory}]`);
+                if (currentStatusCategory === 'done') {
+                    coreExports.info(`Issue ${issueKey} is already in a done status, skipping.`);
+                    return;
+                }
+                const normalize = compose(transliterateText, normalizeString);
+                const normalizedTargetStatus = normalize(targetStatus);
+                const normalizedCurrentStatus = normalize(currentStatusName);
+                if (normalizedCurrentStatus === normalizedTargetStatus) {
+                    coreExports.info(`Issue ${issueKey} is already in the target status '${targetStatus}', skipping.`);
+                    return;
+                }
+                await updateJiraStatus(issueKey, targetStatus);
                 if (args.comment) {
-                    await addJiraComment(issue, args.comment);
+                    await addJiraComment(issueKey, args.comment);
                 }
             }
         });
