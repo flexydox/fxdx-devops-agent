@@ -3,7 +3,7 @@
 /** @type {import('ts-jest').JestConfigWithTsJest} **/
 export default {
   clearMocks: true,
-  collectCoverage: true,
+  collectCoverage: false,
   collectCoverageFrom: ['./src/**'],
   coverageDirectory: './coverage',
   coveragePathIgnorePatterns: ['/node_modules/', '/dist/'],
@@ -28,13 +28,8 @@ export default {
   testMatch: ['**/*.test.ts'],
   testPathIgnorePatterns: ['/dist/', '/node_modules/'],
   transform: {
-    '^.+\\.ts$': [
-      'ts-jest',
-      {
-        tsconfig: 'tsconfig.eslint.json',
-        useESM: true
-      }
-    ]
+    '^.+\\.[tj]sx?$': 'ts-jest'
   },
+  transformIgnorePatterns: ['/node_modules/(?!(semver-parser)/)'],
   verbose: true
 };

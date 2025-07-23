@@ -40955,6 +40955,23 @@ const parseSemVer = (version, strict = false) => {
   };
 };
 
+function parseVersion(version) {
+    if (!version) {
+        return null;
+    }
+    const parsed = parseSemVer(version, false);
+    if (!parsed) {
+        return null;
+    }
+    return {
+        major: parsed.major,
+        minor: parsed.minor,
+        patch: parsed.patch,
+        build: parsed.build ? parsed.build.join('.') : undefined,
+        pre: parsed.pre
+    };
+}
+
 class VersionParse extends BaseCommand {
     constructor() {
         super('version', 'parse');
@@ -40966,7 +40983,7 @@ class VersionParse extends BaseCommand {
             return;
         }
         coreExports.debug(`Raw version: ${rawVersion}`);
-        const parsedVersion = parseSemVer(rawVersion, false);
+        const parsedVersion = parseVersion(rawVersion);
         if (!parsedVersion) {
             coreExports.setFailed(`Invalid version format: ${rawVersion}`);
             return;
@@ -40975,6 +40992,7 @@ class VersionParse extends BaseCommand {
         coreExports.setOutput('major', parsedVersion.major?.toString());
         coreExports.setOutput('minor', parsedVersion.minor?.toString());
         coreExports.setOutput('patch', parsedVersion.patch?.toString());
+        coreExports.setOutput('build', parsedVersion.build || '');
         coreExports.setOutput('pre', parsedVersion.pre ? parsedVersion.pre.join('.') : '');
     }
 }
@@ -66758,6 +66776,53 @@ class SlackE2ENotification extends BaseCommand {
     }
 }
 
+function getTimeOfDayNumber(date = new Date(), timeZone = 'UTC') {
+    const timeParts = new Intl.DateTimeFormat('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+        timeZone
+    })
+        .formatToParts(date)
+        .reduce((acc, part) => {
+        if (part.type === 'hour')
+            acc.hours = parseInt(part.value, 10) % 24; // Ensure hours are in 0-23 range
+        if (part.type === 'minute')
+            acc.minutes = parseInt(part.value, 10) % 60; // Ensure minutes are in 0-59 range
+        if (part.type === 'second')
+            acc.seconds = parseInt(part.value, 10) % 60; // Ensure seconds are in 0-59 range
+        return acc;
+    }, { hours: 0, minutes: 0, seconds: 0 });
+    const secondsInDay = 24 * 60 * 60; // 86,400
+    console.debug(`Time parts: ${JSON.stringify(timeParts)}`);
+    console.debug(`Seconds in day: ${secondsInDay}`);
+    const secondsSinceMidnight = timeParts.hours * 3600 + timeParts.minutes * 60 + timeParts.seconds;
+    return Math.min(Math.ceil((secondsSinceMidnight / secondsInDay) * 999), 999);
+}
+function getTimeOfDayCode(date = new Date(), timeZone = 'UTC') {
+    return getTimeOfDayNumber(date, timeZone).toString().padStart(3, '0');
+}
+
+class VersionCreateDateVersion extends BaseCommand {
+    constructor() {
+        super('version', 'create-date-version');
+    }
+    async execute() {
+        const dt = new Date();
+        const timeOfDayCode = getTimeOfDayCode(dt);
+        const year = dt.getFullYear().toString().slice(-2);
+        const month = (dt.getMonth() + 1).toString().padStart(2, '0'); // Months are 0-indexed
+        const day = dt.getDate().toString().padStart(2, '0');
+        const dateVersion = `${year}${month}${day}${timeOfDayCode}`;
+        coreExports.setOutput('version', dateVersion);
+        coreExports.setOutput('timeOfDay', timeOfDayCode);
+        coreExports.setOutput('year', year);
+        coreExports.setOutput('month', month);
+        coreExports.setOutput('day', day);
+    }
+}
+
 const commands = {
     jira: {
         'add-comment': new JiraAddComment(),
@@ -66771,7 +66836,8 @@ const commands = {
         'commit-info': new CommitInfo()
     },
     version: {
-        parse: new VersionParse()
+        parse: new VersionParse(),
+        'create-date-version': new VersionCreateDateVersion()
     },
     text: {
         'get-issues': new TextGetIssues()

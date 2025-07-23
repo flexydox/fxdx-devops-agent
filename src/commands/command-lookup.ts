@@ -10,6 +10,7 @@ import { JiraAssignToRelease } from './jira/jira-assign-to-release.js';
 import { JiraUpdateLabels } from './jira/jira-update-labels.js';
 import { TextGetIssues } from './text/text-get-issues.js';
 import { SlackE2ENotification } from './slack/slack-e2e-notification.js';
+import { VersionCreateDateVersion } from './version/version-create-date-version.js';
 
 const commands: Record<CommandName, Partial<Record<SubCommandName, BaseCommand<CommandArgs>>>> = {
   jira: {
@@ -24,7 +25,8 @@ const commands: Record<CommandName, Partial<Record<SubCommandName, BaseCommand<C
     'commit-info': new CommitInfo()
   },
   version: {
-    parse: new VersionParse()
+    parse: new VersionParse(),
+    'create-date-version': new VersionCreateDateVersion()
   },
   text: {
     'get-issues': new TextGetIssues()
