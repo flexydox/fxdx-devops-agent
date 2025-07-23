@@ -11,6 +11,7 @@ import { JiraUpdateLabels } from './jira/jira-update-labels.js';
 import { TextGetIssues } from './text/text-get-issues.js';
 import { SlackE2ENotification } from './slack/slack-e2e-notification.js';
 import { VersionCreateDateVersion } from './version/version-create-date-version.js';
+import { VersionExtract } from './version/version-extract.js';
 
 const commands: Record<CommandName, Partial<Record<SubCommandName, BaseCommand<CommandArgs>>>> = {
   jira: {
@@ -26,7 +27,8 @@ const commands: Record<CommandName, Partial<Record<SubCommandName, BaseCommand<C
   },
   version: {
     parse: new VersionParse(),
-    'create-date-version': new VersionCreateDateVersion()
+    'create-date-version': new VersionCreateDateVersion(),
+    extract: new VersionExtract()
   },
   text: {
     'get-issues': new TextGetIssues()

@@ -1,7 +1,7 @@
 export type CommandName = 'jira' | 'github' | 'version' | 'text' | 'slack';
 export type SubCommandJira = 'update-status' | 'add-comment' | 'assign-to-release' | 'update-labels';
 export type SubCommandGithub = 'pr-commenter' | 'get-diff-data' | 'commit-info';
-export type SubCommandVersion = 'parse' | 'create-date-version';
+export type SubCommandVersion = 'parse' | 'create-date-version' | 'extract';
 export type SubCommandText = 'get-issues';
 export type SubCommandSlack = 'e2e-notification';
 
