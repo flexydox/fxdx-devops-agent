@@ -59,6 +59,10 @@ A powerful GitHub Action for automating your development workflow with Jira, Git
     - [Validate PR with Jira issues and comment](#validate-pr-with-jira-issues-and-comment)
     - [Get PR diff data](#get-pr-diff-data)
     - [Parse a version string](#parse-a-version-string)
+    - [Create a date-based version](#create-a-date-based-version)
+    - [Extract version from file](#extract-version-from-file)
+    - [Update version in file](#update-version-in-file)
+    - [Extract version from nested YAML attribute](#extract-version-from-nested-yaml-attribute)
     - [Extract issues from text](#extract-issues-from-text)
     - [Get commit information](#get-commit-information)
     - [Assign Jira issues to a release](#assign-jira-issues-to-a-release)
@@ -74,7 +78,8 @@ A powerful GitHub Action for automating your development workflow with Jira, Git
 
 - Validate and synchronize Jira issues on PRs
 - Update Jira issue status, labels, comments, and releases from workflows
-- Parse semantic versions and extract commit data from PRs
+- Parse semantic versions, extract/update versions from files, and create date-based versions
+- Extract commit data from PRs and manage version file updates
 - Send Slack notifications for E2E test results
 - Modular command/subcommand structure for extensibility
 
@@ -124,9 +129,12 @@ A powerful GitHub Action for automating your development workflow with Jira, Git
 
 ### Version Commands
 
-| Subcommand | Arguments          | Description                                           | Example                               | Outputs                          |
-| ---------- | ------------------ | ----------------------------------------------------- | ------------------------------------- | -------------------------------- |
-| `parse`    | `version` (string) | Parse and output the major, minor, patch, pre fields. | `args: '{ "version": "1.2.3-beta" }'` | `major`, `minor`, `patch`, `pre` |
+| Subcommand            | Arguments                                                                                             | Description                                                                              | Example                                                                                        | Outputs                                                 |
+| --------------------- | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| `parse`               | `version` (string)                                                                                    | Parse and output the major, minor, patch, build, pre fields.                             | `args: '{ "version": "1.2.3-beta" }'`                                                          | `major`, `minor`, `patch`, `build`, `pre`               |
+| `create-date-version` | None                                                                                                  | Create a date-based version string with time-of-day code (format: YYMMDDXXX).            | `args: '{}'`                                                                                   | `version`, `timeOfDay`, `year`, `month`, `day`          |
+| `extract`             | `versionFile` (string), `versionAttribute` (string, optional, default: "version")                     | Extract and parse version from JSON/YAML files using dot notation for nested attributes. | `args: '{ "versionFile": "package.json", "versionAttribute": "version" }'`                     | `rawVersion`, `major`, `minor`, `patch`, `build`, `pre` |
+| `update`              | `version` (string), `versionFile` (string), `versionAttribute` (string, optional, default: "version") | Update version in JSON/YAML files. Supports nested attributes with dot notation.         | `args: '{ "version": "1.2.3", "versionFile": "package.json", "versionAttribute": "version" }'` | None                                                    |
 
 ### Text Commands
 
@@ -260,7 +268,76 @@ steps:
     echo "Major: ${{ steps.parse-version.outputs.major }}"
     echo "Minor: ${{ steps.parse-version.outputs.minor }}"
     echo "Patch: ${{ steps.parse-version.outputs.patch }}"
+    echo "Build: ${{ steps.parse-version.outputs.build }}"
     echo "Pre-release: ${{ steps.parse-version.outputs.pre }}"
+```
+
+### Create a date-based version
+
+```yaml
+- name: Create date version
+  id: create-date-version
+  uses: flexydox/fxdx-devops-agent@v1
+  with:
+    command: version
+    subcommand: create-date-version
+    args: '{}'
+- name: Echo date version outputs
+  run: |
+    echo "Date Version: ${{ steps.create-date-version.outputs.version }}"
+    echo "Time of Day: ${{ steps.create-date-version.outputs.timeOfDay }}"
+    echo "Year: ${{ steps.create-date-version.outputs.year }}"
+    echo "Month: ${{ steps.create-date-version.outputs.month }}"
+    echo "Day: ${{ steps.create-date-version.outputs.day }}"
+```
+
+### Extract version from file
+
+```yaml
+- name: Extract version from package.json
+  id: extract-version
+  uses: flexydox/fxdx-devops-agent@v1
+  with:
+    command: version
+    subcommand: extract
+    args: '{ "versionFile": "package.json", "versionAttribute": "version" }'
+- name: Echo extracted version outputs
+  run: |
+    echo "Raw Version: ${{ steps.extract-version.outputs.rawVersion }}"
+    echo "Major: ${{ steps.extract-version.outputs.major }}"
+    echo "Minor: ${{ steps.extract-version.outputs.minor }}"
+    echo "Patch: ${{ steps.extract-version.outputs.patch }}"
+    echo "Build: ${{ steps.extract-version.outputs.build }}"
+    echo "Pre-release: ${{ steps.extract-version.outputs.pre }}"
+```
+
+### Update version in file
+
+```yaml
+- name: Update version in package.json
+  uses: flexydox/fxdx-devops-agent@v1
+  with:
+    command: version
+    subcommand: update
+    args: '{ "version": "1.2.4", "versionFile": "package.json", "versionAttribute": "version" }'
+```
+
+### Extract version from nested YAML attribute
+
+```yaml
+- name: Extract version from helm chart
+  id: extract-helm-version
+  uses: flexydox/fxdx-devops-agent@v1
+  with:
+    command: version
+    subcommand: extract
+    args: '{ "versionFile": "Chart.yaml", "versionAttribute": "appVersion" }'
+- name: Update version in values.yaml
+  uses: flexydox/fxdx-devops-agent@v1
+  with:
+    command: version
+    subcommand: update
+    args: '{ "version": "${{ steps.extract-helm-version.outputs.rawVersion }}", "versionFile": "values.yaml", "versionAttribute": "image.tag" }'
 ```
 
 ### Extract issues from text
