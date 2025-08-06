@@ -69728,12 +69728,16 @@ class VersionExtract extends BaseCommand {
             coreExports.setFailed(`Invalid version format: ${rawVersion}`);
             return;
         }
+        const preString = parsedVersion.pre ? parsedVersion.pre.join('.') : '';
         coreExports.info(`Parsed version: ${JSON.stringify(parsedVersion)}`);
         coreExports.setOutput('major', parsedVersion.major?.toString());
         coreExports.setOutput('minor', parsedVersion.minor?.toString());
         coreExports.setOutput('patch', parsedVersion.patch?.toString());
         coreExports.setOutput('build', parsedVersion.build || '');
-        coreExports.setOutput('pre', parsedVersion.pre ? parsedVersion.pre.join('.') : '');
+        coreExports.setOutput('pre', preString);
+        coreExports.setOutput('majorMinor', `${parsedVersion.major}.${parsedVersion.minor}`);
+        coreExports.setOutput('majorMinorPatch', `${parsedVersion.major}.${parsedVersion.minor}.${parsedVersion.patch}`);
+        coreExports.setOutput('majorMinorPatchPre', `${parsedVersion.major}.${parsedVersion.minor}.${parsedVersion.patch}${preString ? `-${preString}` : ''}`);
     }
 }
 
