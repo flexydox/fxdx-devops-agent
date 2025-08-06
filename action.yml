@@ -8,17 +8,29 @@ branding:
 inputs:
   command:
     description: |
-      The command to run. It should be one of the following: 'jira', 'git'
+      The command to run. It should be one of the following: 'jira', 'github', 'version', 'text', 'slack'
     required: true
   subcommand:
     description: |
       The subcommand to run. It should be one of the following:
       For 'jira':
-        - 'issue-pr-commenter': Creates a PR comment if the issue is incompletely specified.
-        - 'update-status': Updates the status of a Jira issue.
         - 'add-comment': Adds a comment to a Jira issue.
-      For 'git':
+        - 'update-status': Updates the status of a Jira issue.
+        - 'assign-to-release': Assigns Jira issues to a release version.
+        - 'update-labels': Adds/removes labels on Jira issues.
+      For 'github':
+        - 'pr-commenter': Validates Jira issues on a PR and synchronizes comments.
         - 'get-diff-data': Gets the git diff data for a pull request.
+        - 'commit-info': Gets detailed information about a specific commit.
+      For 'version':
+        - 'parse': Parses and outputs major, minor, patch, pre fields.
+        - 'create-date-version': Creates a date-based version string with time-of-day code.
+        - 'extract': Extracts and parses version from JSON/YAML files.
+        - 'update': Updates version in JSON/YAML files.
+      For 'text':
+        - 'get-issues': Extracts issue references from text using regex.
+      For 'slack':
+        - 'e2e-notification': Sends formatted E2E test results to Slack.
   args:
     description: |
       JSON string with arguments for the command / subcommand.
