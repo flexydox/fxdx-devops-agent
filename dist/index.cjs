@@ -69792,7 +69792,7 @@ class VersionUpdate extends BaseCommand {
         // use regex to find and replace the version attribute in the YAML file
         try {
             const fileContent = await fs__namespace.readFile(fileName, 'utf-8');
-            const regex = new RegExp(`^(\\s*${versionAttribute}\\s*:\\s*).+$`, 'gm');
+            const regex = new RegExp(`^(${versionAttribute}:\\s*).+$`, 'gm');
             const updatedContent = fileContent.replace(regex, `$1${version}`);
             await fs__namespace.writeFile(fileName, updatedContent);
             coreExports.info(`Updated version in YAML file: ${fileName}, ${versionAttribute}: ${version}`);
