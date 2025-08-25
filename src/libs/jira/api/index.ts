@@ -42,9 +42,9 @@ async function jiraApiFetch(url: string, options: JiraFetchOptions): Promise<Res
     }
   });
   if (!response.ok) {
-    core.debug(`Jira API fetch failed with status: ${response.status}`);
+    core.warning(`Jira API fetch failed with status: ${response.status}`);
     const respText = await response.text();
-    core.debug(`Response body text: ${respText}`);
+    core.warning(`Response body text: ${respText}`);
   }
   return response;
 }

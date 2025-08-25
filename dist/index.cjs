@@ -29,12 +29,12 @@ var require$$6 = require('string_decoder');
 var require$$0$b = require('diagnostics_channel');
 var require$$2$4 = require('child_process');
 var require$$6$1 = require('timers');
-var require$$1$6 = require('node:path');
+var require$$0$c = require('node:os');
+var require$$1$5 = require('node:path');
 var require$$1$7 = require('node:querystring');
 var require$$3$3 = require('node:zlib');
-var require$$1$5 = require('tty');
-var require$$0$c = require('node:fs');
-var require$$0$d = require('node:os');
+var require$$1$6 = require('tty');
+var require$$0$d = require('node:fs');
 var fs = require('fs/promises');
 
 function _interopNamespaceDefault(e) {
@@ -67,7 +67,11 @@ function getAugmentedNamespace(n) {
   var f = n.default;
 	if (typeof f == "function") {
 		var a = function a () {
-			if (this instanceof a) {
+			var isInstance = false;
+      try {
+        isInstance = this instanceof a;
+      } catch {}
+			if (isInstance) {
         return Reflect.construct(f, arguments, this.constructor);
 			}
 			return f.apply(this, arguments);
@@ -11549,6 +11553,20 @@ function requirePool () {
 	      ? { ...options.interceptors }
 	      : undefined;
 	    this[kFactory] = factory;
+
+	    this.on('connectionError', (origin, targets, error) => {
+	      // If a connection error occurs, we remove the client from the pool,
+	      // and emit a connectionError event. They will not be re-used.
+	      // Fixes https://github.com/nodejs/undici/issues/3895
+	      for (const target of targets) {
+	        // Do not use kRemoveClient here, as it will close the client,
+	        // but the client cannot be closed in this state.
+	        const idx = this[kClients].indexOf(target);
+	        if (idx !== -1) {
+	          this[kClients].splice(idx, 1);
+	        }
+	      }
+	    });
 	  }
 
 	  [kGetDispatcher] () {
@@ -15010,6 +15028,7 @@ function requireHeaders () {
 	  isValidHeaderName,
 	  isValidHeaderValue
 	} = requireUtil$5();
+	const util = require$$0$3;
 	const { webidl } = requireWebidl();
 	const assert = require$$0$4;
 
@@ -15556,6 +15575,9 @@ function requireHeaders () {
 	  [Symbol.toStringTag]: {
 	    value: 'Headers',
 	    configurable: true
+	  },
+	  [util.inspect.custom]: {
+	    enumerable: false
 	  }
 	});
 
@@ -21445,9 +21467,10 @@ function requireUtil$1 () {
 	if (hasRequiredUtil$1) return util$1;
 	hasRequiredUtil$1 = 1;
 
-	const assert = require$$0$4;
-	const { kHeadersList } = requireSymbols$4();
-
+	/**
+	 * @param {string} value
+	 * @returns {boolean}
+	 */
 	function isCTLExcludingHtab (value) {
 	  if (value.length === 0) {
 	    return false
@@ -21708,31 +21731,13 @@ function requireUtil$1 () {
 	  return out.join('; ')
 	}
 
-	let kHeadersListNode;
-
-	function getHeadersList (headers) {
-	  if (headers[kHeadersList]) {
-	    return headers[kHeadersList]
-	  }
-
-	  if (!kHeadersListNode) {
-	    kHeadersListNode = Object.getOwnPropertySymbols(headers).find(
-	      (symbol) => symbol.description === 'headers list'
-	    );
-
-	    assert(kHeadersListNode, 'Headers cannot be parsed');
-	  }
-
-	  const headersList = headers[kHeadersListNode];
-	  assert(headersList);
-
-	  return headersList
-	}
-
 	util$1 = {
 	  isCTLExcludingHtab,
-	  stringify,
-	  getHeadersList
+	  validateCookieName,
+	  validateCookiePath,
+	  validateCookieValue,
+	  toIMFDate,
+	  stringify
 	};
 	return util$1;
 }
@@ -22070,7 +22075,7 @@ function requireCookies () {
 	hasRequiredCookies = 1;
 
 	const { parseSetCookie } = requireParse();
-	const { stringify, getHeadersList } = requireUtil$1();
+	const { stringify } = requireUtil$1();
 	const { webidl } = requireWebidl();
 	const { Headers } = requireHeaders();
 
@@ -22146,14 +22151,13 @@ function requireCookies () {
 
 	  webidl.brandCheck(headers, Headers, { strict: false });
 
-	  const cookies = getHeadersList(headers).cookies;
+	  const cookies = headers.getSetCookie();
 
 	  if (!cookies) {
 	    return []
 	  }
 
-	  // In older versions of undici, cookies is a list of name:value.
-	  return cookies.map((pair) => parseSetCookie(Array.isArray(pair) ? pair[1] : pair))
+	  return cookies.map((pair) => parseSetCookie(pair))
 	}
 
 	/**
@@ -29873,9 +29877,9 @@ async function jiraApiFetch(url, options) {
         }
     });
     if (!response.ok) {
-        coreExports.debug(`Jira API fetch failed with status: ${response.status}`);
+        coreExports.warning(`Jira API fetch failed with status: ${response.status}`);
         const respText = await response.text();
-        coreExports.debug(`Response body text: ${respText}`);
+        coreExports.warning(`Response body text: ${respText}`);
     }
     return response;
 }
@@ -31240,13 +31244,28 @@ const createTokenAuth = function createTokenAuth2(token) {
 // pkg/dist-src/index.js
 
 // pkg/dist-src/version.js
-var VERSION$3 = "5.2.0";
+var VERSION$3 = "5.2.2";
 
 // pkg/dist-src/index.js
 var noop = () => {
 };
 var consoleWarn = console.warn.bind(console);
 var consoleError = console.error.bind(console);
+function createLogger(logger = {}) {
+  if (typeof logger.debug !== "function") {
+    logger.debug = noop;
+  }
+  if (typeof logger.info !== "function") {
+    logger.info = noop;
+  }
+  if (typeof logger.warn !== "function") {
+    logger.warn = consoleWarn;
+  }
+  if (typeof logger.error !== "function") {
+    logger.error = consoleError;
+  }
+  return logger;
+}
 var userAgentTrail = `octokit-core.js/${VERSION$3} ${getUserAgent()}`;
 var Octokit = class {
   static {
@@ -31320,15 +31339,7 @@ var Octokit = class {
     }
     this.request = request$1.defaults(requestDefaults);
     this.graphql = withCustomRequest(this.request).defaults(requestDefaults);
-    this.log = Object.assign(
-      {
-        debug: noop,
-        info: noop,
-        warn: consoleWarn,
-        error: consoleError
-      },
-      options.log
-    );
+    this.log = createLogger(options.log);
     this.hook = hook;
     if (!options.authStrategy) {
       if (!options.auth) {
@@ -34502,7 +34513,7 @@ function inner_stringify(object, prefix, generateArrayPrefix, commaRoundTrip, al
     let tmp_sc = sideChannel;
     let step = 0;
     let find_flag = false;
-    while ((tmp_sc = tmp_sc.get(sentinel)) !== void 0 && !find_flag) {
+    while ((tmp_sc = tmp_sc.get(sentinel)) !== void undefined && !find_flag) {
         // Where object last appeared in the ref tree
         const pos = tmp_sc.get(object);
         step += 1;
@@ -34566,7 +34577,7 @@ function inner_stringify(object, prefix, generateArrayPrefix, commaRoundTrip, al
             // @ts-expect-error values only
             obj = maybe_map(obj, encoder);
         }
-        obj_keys = [{ value: obj.length > 0 ? obj.join(',') || null : void 0 }];
+        obj_keys = [{ value: obj.length > 0 ? obj.join(',') || null : void undefined }];
     }
     else if (is_array(filter)) {
         obj_keys = filter;
@@ -34722,7 +34733,7 @@ function stringify(object, opts = {}) {
     return joined.length > 0 ? prefix + joined : '';
 }
 
-const VERSION = '4.97.0'; // x-release-please-version
+const VERSION = '4.104.0'; // x-release-please-version
 
 let auto = false;
 let kind = undefined;
@@ -36521,6 +36532,12 @@ let Completions$2 = class Completions extends APIResource {
     /**
      * Get a stored chat completion. Only Chat Completions that have been created with
      * the `store` parameter set to `true` will be returned.
+     *
+     * @example
+     * ```ts
+     * const chatCompletion =
+     *   await client.chat.completions.retrieve('completion_id');
+     * ```
      */
     retrieve(completionId, options) {
         return this._client.get(`/chat/completions/${completionId}`, options);
@@ -36529,6 +36546,14 @@ let Completions$2 = class Completions extends APIResource {
      * Modify a stored chat completion. Only Chat Completions that have been created
      * with the `store` parameter set to `true` can be modified. Currently, the only
      * supported modification is to update the `metadata` field.
+     *
+     * @example
+     * ```ts
+     * const chatCompletion = await client.chat.completions.update(
+     *   'completion_id',
+     *   { metadata: { foo: 'string' } },
+     * );
+     * ```
      */
     update(completionId, body, options) {
         return this._client.post(`/chat/completions/${completionId}`, { body, ...options });
@@ -36542,6 +36567,12 @@ let Completions$2 = class Completions extends APIResource {
     /**
      * Delete a stored chat completion. Only Chat Completions that have been created
      * with the `store` parameter set to `true` can be deleted.
+     *
+     * @example
+     * ```ts
+     * const chatCompletionDeleted =
+     *   await client.chat.completions.del('completion_id');
+     * ```
      */
     del(completionId, options) {
         return this._client.delete(`/chat/completions/${completionId}`, options);
@@ -36568,6 +36599,18 @@ Chat$1.ChatCompletionsPage = ChatCompletionsPage;
 class Speech extends APIResource {
     /**
      * Generates audio from the input text.
+     *
+     * @example
+     * ```ts
+     * const speech = await client.audio.speech.create({
+     *   input: 'input',
+     *   model: 'string',
+     *   voice: 'ash',
+     * });
+     *
+     * const content = await speech.blob();
+     * console.log(content);
+     * ```
      */
     create(body, options) {
         return this._client.post('/audio/speech', {
@@ -37390,6 +37433,13 @@ _AssistantStream_addEvent = function _AssistantStream_addEvent(event) {
 class Assistants extends APIResource {
     /**
      * Create an assistant with a model and instructions.
+     *
+     * @example
+     * ```ts
+     * const assistant = await client.beta.assistants.create({
+     *   model: 'gpt-4o',
+     * });
+     * ```
      */
     create(body, options) {
         return this._client.post('/assistants', {
@@ -37400,6 +37450,13 @@ class Assistants extends APIResource {
     }
     /**
      * Retrieves an assistant.
+     *
+     * @example
+     * ```ts
+     * const assistant = await client.beta.assistants.retrieve(
+     *   'assistant_id',
+     * );
+     * ```
      */
     retrieve(assistantId, options) {
         return this._client.get(`/assistants/${assistantId}`, {
@@ -37409,6 +37466,13 @@ class Assistants extends APIResource {
     }
     /**
      * Modifies an assistant.
+     *
+     * @example
+     * ```ts
+     * const assistant = await client.beta.assistants.update(
+     *   'assistant_id',
+     * );
+     * ```
      */
     update(assistantId, body, options) {
         return this._client.post(`/assistants/${assistantId}`, {
@@ -37429,6 +37493,13 @@ class Assistants extends APIResource {
     }
     /**
      * Delete an assistant.
+     *
+     * @example
+     * ```ts
+     * const assistantDeleted = await client.beta.assistants.del(
+     *   'assistant_id',
+     * );
+     * ```
      */
     del(assistantId, options) {
         return this._client.delete(`/assistants/${assistantId}`, {
@@ -38754,6 +38825,12 @@ class Sessions extends APIResource {
      * It responds with a session object, plus a `client_secret` key which contains a
      * usable ephemeral API token that can be used to authenticate browser clients for
      * the Realtime API.
+     *
+     * @example
+     * ```ts
+     * const session =
+     *   await client.beta.realtime.sessions.create();
+     * ```
      */
     create(body, options) {
         return this._client.post('/realtime/sessions', {
@@ -38774,6 +38851,12 @@ class TranscriptionSessions extends APIResource {
      * It responds with a session object, plus a `client_secret` key which contains a
      * usable ephemeral API token that can be used to authenticate browser clients for
      * the Realtime API.
+     *
+     * @example
+     * ```ts
+     * const transcriptionSession =
+     *   await client.beta.realtime.transcriptionSessions.create();
+     * ```
      */
     create(body, options) {
         return this._client.post('/realtime/transcription_sessions', {
@@ -38796,9 +38879,14 @@ Realtime.Sessions = Sessions;
 Realtime.TranscriptionSessions = TranscriptionSessions;
 
 // File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
+/**
+ * @deprecated The Assistants API is deprecated in favor of the Responses API
+ */
 class Messages extends APIResource {
     /**
      * Create a message.
+     *
+     * @deprecated The Assistants API is deprecated in favor of the Responses API
      */
     create(threadId, body, options) {
         return this._client.post(`/threads/${threadId}/messages`, {
@@ -38809,6 +38897,8 @@ class Messages extends APIResource {
     }
     /**
      * Retrieve a message.
+     *
+     * @deprecated The Assistants API is deprecated in favor of the Responses API
      */
     retrieve(threadId, messageId, options) {
         return this._client.get(`/threads/${threadId}/messages/${messageId}`, {
@@ -38818,6 +38908,8 @@ class Messages extends APIResource {
     }
     /**
      * Modifies a message.
+     *
+     * @deprecated The Assistants API is deprecated in favor of the Responses API
      */
     update(threadId, messageId, body, options) {
         return this._client.post(`/threads/${threadId}/messages/${messageId}`, {
@@ -38838,6 +38930,8 @@ class Messages extends APIResource {
     }
     /**
      * Deletes a message.
+     *
+     * @deprecated The Assistants API is deprecated in favor of the Responses API
      */
     del(threadId, messageId, options) {
         return this._client.delete(`/threads/${threadId}/messages/${messageId}`, {
@@ -38851,6 +38945,9 @@ class MessagesPage extends CursorPage {
 Messages.MessagesPage = MessagesPage;
 
 // File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
+/**
+ * @deprecated The Assistants API is deprecated in favor of the Responses API
+ */
 class Steps extends APIResource {
     retrieve(threadId, runId, stepId, query = {}, options) {
         if (isRequestOptions(query)) {
@@ -38878,6 +38975,9 @@ class RunStepsPage extends CursorPage {
 Steps.RunStepsPage = RunStepsPage;
 
 // File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
+/**
+ * @deprecated The Assistants API is deprecated in favor of the Responses API
+ */
 let Runs$1 = class Runs extends APIResource {
     constructor() {
         super(...arguments);
@@ -38895,6 +38995,8 @@ let Runs$1 = class Runs extends APIResource {
     }
     /**
      * Retrieves a run.
+     *
+     * @deprecated The Assistants API is deprecated in favor of the Responses API
      */
     retrieve(threadId, runId, options) {
         return this._client.get(`/threads/${threadId}/runs/${runId}`, {
@@ -38904,6 +39006,8 @@ let Runs$1 = class Runs extends APIResource {
     }
     /**
      * Modifies a run.
+     *
+     * @deprecated The Assistants API is deprecated in favor of the Responses API
      */
     update(threadId, runId, body, options) {
         return this._client.post(`/threads/${threadId}/runs/${runId}`, {
@@ -38924,6 +39028,8 @@ let Runs$1 = class Runs extends APIResource {
     }
     /**
      * Cancels a run that is `in_progress`.
+     *
+     * @deprecated The Assistants API is deprecated in favor of the Responses API
      */
     cancel(threadId, runId, options) {
         return this._client.post(`/threads/${threadId}/runs/${runId}/cancel`, {
@@ -39033,6 +39139,9 @@ Runs$1.Steps = Steps;
 Runs$1.RunStepsPage = RunStepsPage;
 
 // File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
+/**
+ * @deprecated The Assistants API is deprecated in favor of the Responses API
+ */
 class Threads extends APIResource {
     constructor() {
         super(...arguments);
@@ -39051,6 +39160,8 @@ class Threads extends APIResource {
     }
     /**
      * Retrieves a thread.
+     *
+     * @deprecated The Assistants API is deprecated in favor of the Responses API
      */
     retrieve(threadId, options) {
         return this._client.get(`/threads/${threadId}`, {
@@ -39060,6 +39171,8 @@ class Threads extends APIResource {
     }
     /**
      * Modifies a thread.
+     *
+     * @deprecated The Assistants API is deprecated in favor of the Responses API
      */
     update(threadId, body, options) {
         return this._client.post(`/threads/${threadId}`, {
@@ -39070,6 +39183,8 @@ class Threads extends APIResource {
     }
     /**
      * Delete a thread.
+     *
+     * @deprecated The Assistants API is deprecated in favor of the Responses API
      */
     del(threadId, options) {
         return this._client.delete(`/threads/${threadId}`, {
@@ -39129,9 +39244,117 @@ class Completions extends APIResource {
 }
 
 // File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
+class Content extends APIResource {
+    /**
+     * Retrieve Container File Content
+     */
+    retrieve(containerId, fileId, options) {
+        return this._client.get(`/containers/${containerId}/files/${fileId}/content`, {
+            ...options,
+            headers: { Accept: 'application/binary', ...options?.headers },
+            __binaryResponse: true,
+        });
+    }
+}
+
+// File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
+let Files$2 = class Files extends APIResource {
+    constructor() {
+        super(...arguments);
+        this.content = new Content(this._client);
+    }
+    /**
+     * Create a Container File
+     *
+     * You can send either a multipart/form-data request with the raw file content, or
+     * a JSON request with a file ID.
+     */
+    create(containerId, body, options) {
+        return this._client.post(`/containers/${containerId}/files`, multipartFormRequestOptions({ body, ...options }));
+    }
+    /**
+     * Retrieve Container File
+     */
+    retrieve(containerId, fileId, options) {
+        return this._client.get(`/containers/${containerId}/files/${fileId}`, options);
+    }
+    list(containerId, query = {}, options) {
+        if (isRequestOptions(query)) {
+            return this.list(containerId, {}, query);
+        }
+        return this._client.getAPIList(`/containers/${containerId}/files`, FileListResponsesPage, {
+            query,
+            ...options,
+        });
+    }
+    /**
+     * Delete Container File
+     */
+    del(containerId, fileId, options) {
+        return this._client.delete(`/containers/${containerId}/files/${fileId}`, {
+            ...options,
+            headers: { Accept: '*/*', ...options?.headers },
+        });
+    }
+};
+class FileListResponsesPage extends CursorPage {
+}
+Files$2.FileListResponsesPage = FileListResponsesPage;
+Files$2.Content = Content;
+
+// File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
+class Containers extends APIResource {
+    constructor() {
+        super(...arguments);
+        this.files = new Files$2(this._client);
+    }
+    /**
+     * Create Container
+     */
+    create(body, options) {
+        return this._client.post('/containers', { body, ...options });
+    }
+    /**
+     * Retrieve Container
+     */
+    retrieve(containerId, options) {
+        return this._client.get(`/containers/${containerId}`, options);
+    }
+    list(query = {}, options) {
+        if (isRequestOptions(query)) {
+            return this.list({}, query);
+        }
+        return this._client.getAPIList('/containers', ContainerListResponsesPage, { query, ...options });
+    }
+    /**
+     * Delete Container
+     */
+    del(containerId, options) {
+        return this._client.delete(`/containers/${containerId}`, {
+            ...options,
+            headers: { Accept: '*/*', ...options?.headers },
+        });
+    }
+}
+class ContainerListResponsesPage extends CursorPage {
+}
+Containers.ContainerListResponsesPage = ContainerListResponsesPage;
+Containers.Files = Files$2;
+Containers.FileListResponsesPage = FileListResponsesPage;
+
+// File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
 class Embeddings extends APIResource {
     /**
      * Creates an embedding vector representing the input text.
+     *
+     * @example
+     * ```ts
+     * const createEmbeddingResponse =
+     *   await client.embeddings.create({
+     *     input: 'The quick brown fox jumped over the lazy dog',
+     *     model: 'text-embedding-3-small',
+     *   });
+     * ```
      */
     create(body, options) {
         const hasUserProvidedEncodingFormat = !!body.encoding_format;
@@ -39195,7 +39418,9 @@ class Runs extends APIResource {
         this.outputItems = new OutputItems(this._client);
     }
     /**
-     * Create a new evaluation run. This is the endpoint that will kick off grading.
+     * Kicks off a new run for a given evaluation, specifying the data source, and what
+     * model configuration to use to test. The datasource will be validated against the
+     * schema specified in the config of the evaluation.
      */
     create(evalId, body, options) {
         return this._client.post(`/evals/${evalId}/runs`, { body, ...options });
@@ -39239,7 +39464,8 @@ class Evals extends APIResource {
     }
     /**
      * Create the structure of an evaluation that can be used to test a model's
-     * performance. An evaluation is a set of testing criteria and a datasource. After
+     * performance. An evaluation is a set of testing criteria and the config for a
+     * data source, which dictates the schema of the data used in the evaluation. After
      * creating an evaluation, you can run it on different models and model parameters.
      * We support several types of graders and datasources. For more information, see
      * the [Evals guide](https://platform.openai.com/docs/guides/evals).
@@ -39366,12 +39592,81 @@ class FileObjectsPage extends CursorPage {
 Files$1.FileObjectsPage = FileObjectsPage;
 
 // File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
+class Methods extends APIResource {
+}
+
+// File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
+let Graders$1 = class Graders extends APIResource {
+    /**
+     * Run a grader.
+     *
+     * @example
+     * ```ts
+     * const response = await client.fineTuning.alpha.graders.run({
+     *   grader: {
+     *     input: 'input',
+     *     name: 'name',
+     *     operation: 'eq',
+     *     reference: 'reference',
+     *     type: 'string_check',
+     *   },
+     *   model_sample: 'model_sample',
+     *   reference_answer: 'string',
+     * });
+     * ```
+     */
+    run(body, options) {
+        return this._client.post('/fine_tuning/alpha/graders/run', { body, ...options });
+    }
+    /**
+     * Validate a grader.
+     *
+     * @example
+     * ```ts
+     * const response =
+     *   await client.fineTuning.alpha.graders.validate({
+     *     grader: {
+     *       input: 'input',
+     *       name: 'name',
+     *       operation: 'eq',
+     *       reference: 'reference',
+     *       type: 'string_check',
+     *     },
+     *   });
+     * ```
+     */
+    validate(body, options) {
+        return this._client.post('/fine_tuning/alpha/graders/validate', { body, ...options });
+    }
+};
+
+// File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
+class Alpha extends APIResource {
+    constructor() {
+        super(...arguments);
+        this.graders = new Graders$1(this._client);
+    }
+}
+Alpha.Graders = Graders$1;
+
+// File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
 class Permissions extends APIResource {
     /**
      * **NOTE:** Calling this endpoint requires an [admin API key](../admin-api-keys).
      *
      * This enables organization owners to share fine-tuned models with other projects
      * in their organization.
+     *
+     * @example
+     * ```ts
+     * // Automatically fetches more pages as needed.
+     * for await (const permissionCreateResponse of client.fineTuning.checkpoints.permissions.create(
+     *   'ft:gpt-4o-mini-2024-07-18:org:weather:B7R9VjQd',
+     *   { project_ids: ['string'] },
+     * )) {
+     *   // ...
+     * }
+     * ```
      */
     create(fineTunedModelCheckpoint, body, options) {
         return this._client.getAPIList(`/fine_tuning/checkpoints/${fineTunedModelCheckpoint}/permissions`, PermissionCreateResponsesPage, { body, method: 'post', ...options });
@@ -39390,6 +39685,15 @@ class Permissions extends APIResource {
      *
      * Organization owners can use this endpoint to delete a permission for a
      * fine-tuned model checkpoint.
+     *
+     * @example
+     * ```ts
+     * const permission =
+     *   await client.fineTuning.checkpoints.permissions.del(
+     *     'ft:gpt-4o-mini-2024-07-18:org:weather:B7R9VjQd',
+     *     'cp_zc4Q7MP6XxulcVzj4MZdwsAB',
+     *   );
+     * ```
      */
     del(fineTunedModelCheckpoint, permissionId, options) {
         return this._client.delete(`/fine_tuning/checkpoints/${fineTunedModelCheckpoint}/permissions/${permissionId}`, options);
@@ -39439,6 +39743,14 @@ class Jobs extends APIResource {
      * of the fine-tuned models once complete.
      *
      * [Learn more about fine-tuning](https://platform.openai.com/docs/guides/fine-tuning)
+     *
+     * @example
+     * ```ts
+     * const fineTuningJob = await client.fineTuning.jobs.create({
+     *   model: 'gpt-4o-mini',
+     *   training_file: 'file-abc123',
+     * });
+     * ```
      */
     create(body, options) {
         return this._client.post('/fine_tuning/jobs', { body, ...options });
@@ -39447,6 +39759,13 @@ class Jobs extends APIResource {
      * Get info about a fine-tuning job.
      *
      * [Learn more about fine-tuning](https://platform.openai.com/docs/guides/fine-tuning)
+     *
+     * @example
+     * ```ts
+     * const fineTuningJob = await client.fineTuning.jobs.retrieve(
+     *   'ft-AF1WoRqd3aJAHsqc9NY7iL8F',
+     * );
+     * ```
      */
     retrieve(fineTuningJobId, options) {
         return this._client.get(`/fine_tuning/jobs/${fineTuningJobId}`, options);
@@ -39459,6 +39778,13 @@ class Jobs extends APIResource {
     }
     /**
      * Immediately cancel a fine-tune job.
+     *
+     * @example
+     * ```ts
+     * const fineTuningJob = await client.fineTuning.jobs.cancel(
+     *   'ft-AF1WoRqd3aJAHsqc9NY7iL8F',
+     * );
+     * ```
      */
     cancel(fineTuningJobId, options) {
         return this._client.post(`/fine_tuning/jobs/${fineTuningJobId}/cancel`, options);
@@ -39471,6 +39797,32 @@ class Jobs extends APIResource {
             query,
             ...options,
         });
+    }
+    /**
+     * Pause a fine-tune job.
+     *
+     * @example
+     * ```ts
+     * const fineTuningJob = await client.fineTuning.jobs.pause(
+     *   'ft-AF1WoRqd3aJAHsqc9NY7iL8F',
+     * );
+     * ```
+     */
+    pause(fineTuningJobId, options) {
+        return this._client.post(`/fine_tuning/jobs/${fineTuningJobId}/pause`, options);
+    }
+    /**
+     * Resume a fine-tune job.
+     *
+     * @example
+     * ```ts
+     * const fineTuningJob = await client.fineTuning.jobs.resume(
+     *   'ft-AF1WoRqd3aJAHsqc9NY7iL8F',
+     * );
+     * ```
+     */
+    resume(fineTuningJobId, options) {
+        return this._client.post(`/fine_tuning/jobs/${fineTuningJobId}/resume`, options);
     }
 }
 class FineTuningJobsPage extends CursorPage {
@@ -39486,19 +39838,43 @@ Jobs.FineTuningJobCheckpointsPage = FineTuningJobCheckpointsPage;
 class FineTuning extends APIResource {
     constructor() {
         super(...arguments);
+        this.methods = new Methods(this._client);
         this.jobs = new Jobs(this._client);
         this.checkpoints = new Checkpoints$1(this._client);
+        this.alpha = new Alpha(this._client);
     }
 }
+FineTuning.Methods = Methods;
 FineTuning.Jobs = Jobs;
 FineTuning.FineTuningJobsPage = FineTuningJobsPage;
 FineTuning.FineTuningJobEventsPage = FineTuningJobEventsPage;
 FineTuning.Checkpoints = Checkpoints$1;
+FineTuning.Alpha = Alpha;
+
+// File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
+class GraderModels extends APIResource {
+}
+
+// File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
+class Graders extends APIResource {
+    constructor() {
+        super(...arguments);
+        this.graderModels = new GraderModels(this._client);
+    }
+}
+Graders.GraderModels = GraderModels;
 
 // File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
 class Images extends APIResource {
     /**
      * Creates a variation of a given image. This endpoint only supports `dall-e-2`.
+     *
+     * @example
+     * ```ts
+     * const imagesResponse = await client.images.createVariation({
+     *   image: fs.createReadStream('otter.png'),
+     * });
+     * ```
      */
     createVariation(body, options) {
         return this._client.post('/images/variations', multipartFormRequestOptions({ body, ...options }));
@@ -39506,6 +39882,14 @@ class Images extends APIResource {
     /**
      * Creates an edited or extended image given one or more source images and a
      * prompt. This endpoint only supports `gpt-image-1` and `dall-e-2`.
+     *
+     * @example
+     * ```ts
+     * const imagesResponse = await client.images.edit({
+     *   image: fs.createReadStream('path/to/file'),
+     *   prompt: 'A cute baby sea otter wearing a beret',
+     * });
+     * ```
      */
     edit(body, options) {
         return this._client.post('/images/edits', multipartFormRequestOptions({ body, ...options }));
@@ -39513,6 +39897,13 @@ class Images extends APIResource {
     /**
      * Creates an image given a prompt.
      * [Learn more](https://platform.openai.com/docs/guides/images).
+     *
+     * @example
+     * ```ts
+     * const imagesResponse = await client.images.generate({
+     *   prompt: 'A cute baby sea otter',
+     * });
+     * ```
      */
     generate(body, options) {
         return this._client.post('/images/generations', { body, ...options });
@@ -39720,13 +40111,13 @@ class ResponseStream extends EventStream {
     }
     static createResponse(client, params, options) {
         const runner = new ResponseStream(params);
-        runner._run(() => runner._createResponse(client, params, {
+        runner._run(() => runner._createOrRetrieveResponse(client, params, {
             ...options,
             headers: { ...options?.headers, 'X-Stainless-Helper-Method': 'stream' },
         }));
         return runner;
     }
-    async _createResponse(client, params, options) {
+    async _createOrRetrieveResponse(client, params, options) {
         const signal = options?.signal;
         if (signal) {
             if (signal.aborted)
@@ -39734,10 +40125,18 @@ class ResponseStream extends EventStream {
             signal.addEventListener('abort', () => this.controller.abort());
         }
         __classPrivateFieldGet(this, _ResponseStream_instances, "m", _ResponseStream_beginRequest).call(this);
-        const stream = await client.responses.create({ ...params, stream: true }, { ...options, signal: this.controller.signal });
+        let stream;
+        let starting_after = null;
+        if ('response_id' in params) {
+            stream = await client.responses.retrieve(params.response_id, { stream: true }, { ...options, signal: this.controller.signal, stream: true });
+            starting_after = params.starting_after ?? null;
+        }
+        else {
+            stream = await client.responses.create({ ...params, stream: true }, { ...options, signal: this.controller.signal });
+        }
         this._connected();
         for await (const event of stream) {
-            __classPrivateFieldGet(this, _ResponseStream_instances, "m", _ResponseStream_addEvent).call(this, event);
+            __classPrivateFieldGet(this, _ResponseStream_instances, "m", _ResponseStream_addEvent).call(this, event, starting_after);
         }
         if (stream.controller.signal?.aborted) {
             throw new APIUserAbortError();
@@ -39748,11 +40147,16 @@ class ResponseStream extends EventStream {
         if (this.ended)
             return;
         __classPrivateFieldSet(this, _ResponseStream_currentResponseSnapshot, undefined, "f");
-    }, _ResponseStream_addEvent = function _ResponseStream_addEvent(event) {
+    }, _ResponseStream_addEvent = function _ResponseStream_addEvent(event, starting_after) {
         if (this.ended)
             return;
+        const maybeEmit = (name, event) => {
+            if (starting_after == null || event.sequence_number > starting_after) {
+                this._emit(name, event);
+            }
+        };
         const response = __classPrivateFieldGet(this, _ResponseStream_instances, "m", _ResponseStream_accumulateResponse).call(this, event);
-        this._emit('event', event);
+        maybeEmit('event', event);
         switch (event.type) {
             case 'response.output_text.delta': {
                 const output = response.output[event.output_index];
@@ -39767,7 +40171,7 @@ class ResponseStream extends EventStream {
                     if (content.type !== 'output_text') {
                         throw new OpenAIError(`expected content to be 'output_text', got ${content.type}`);
                     }
-                    this._emit('response.output_text.delta', {
+                    maybeEmit('response.output_text.delta', {
                         ...event,
                         snapshot: content.text,
                     });
@@ -39780,7 +40184,7 @@ class ResponseStream extends EventStream {
                     throw new OpenAIError(`missing output at index ${event.output_index}`);
                 }
                 if (output.type === 'function_call') {
-                    this._emit('response.function_call_arguments.delta', {
+                    maybeEmit('response.function_call_arguments.delta', {
                         ...event,
                         snapshot: output.arguments,
                     });
@@ -39788,8 +40192,7 @@ class ResponseStream extends EventStream {
                 break;
             }
             default:
-                // @ts-ignore
-                this._emit(event.type, event);
+                maybeEmit(event.type, event);
                 break;
         }
     }, _ResponseStream_endRequest = function _ResponseStream_endRequest() {
@@ -39943,13 +40346,21 @@ class Responses extends APIResource {
         });
     }
     retrieve(responseId, query = {}, options) {
-        if (isRequestOptions(query)) {
-            return this.retrieve(responseId, {}, query);
-        }
-        return this._client.get(`/responses/${responseId}`, { query, ...options });
+        return this._client.get(`/responses/${responseId}`, {
+            query,
+            ...options,
+            stream: query?.stream ?? false,
+        });
     }
     /**
      * Deletes a model response with the given ID.
+     *
+     * @example
+     * ```ts
+     * await client.responses.del(
+     *   'resp_677efb5139a88190b512bc3fef8e535d',
+     * );
+     * ```
      */
     del(responseId, options) {
         return this._client.delete(`/responses/${responseId}`, {
@@ -39967,6 +40378,24 @@ class Responses extends APIResource {
      */
     stream(body, options) {
         return ResponseStream.createResponse(this._client, body, options);
+    }
+    /**
+     * Cancels a model response with the given ID. Only responses created with the
+     * `background` parameter set to `true` can be cancelled.
+     * [Learn more](https://platform.openai.com/docs/guides/background).
+     *
+     * @example
+     * ```ts
+     * await client.responses.cancel(
+     *   'resp_677efb5139a88190b512bc3fef8e535d',
+     * );
+     * ```
+     */
+    cancel(responseId, options) {
+        return this._client.post(`/responses/${responseId}/cancel`, {
+            ...options,
+            headers: { Accept: '*/*', ...options?.headers },
+        });
     }
 }
 class ResponseItemsPage extends CursorPage {
@@ -40458,12 +40887,14 @@ class OpenAI extends APIClient {
         this.moderations = new Moderations(this);
         this.models = new Models(this);
         this.fineTuning = new FineTuning(this);
+        this.graders = new Graders(this);
         this.vectorStores = new VectorStores(this);
         this.beta = new Beta(this);
         this.batches = new Batches(this);
         this.uploads = new Uploads(this);
         this.responses = new Responses(this);
         this.evals = new Evals(this);
+        this.containers = new Containers(this);
         this._options = options;
         this.apiKey = apiKey;
         this.organization = organization;
@@ -40517,6 +40948,7 @@ OpenAI.Moderations = Moderations;
 OpenAI.Models = Models;
 OpenAI.ModelsPage = ModelsPage;
 OpenAI.FineTuning = FineTuning;
+OpenAI.Graders = Graders;
 OpenAI.VectorStores = VectorStores;
 OpenAI.VectorStoresPage = VectorStoresPage;
 OpenAI.VectorStoreSearchResponsesPage = VectorStoreSearchResponsesPage;
@@ -40527,6 +40959,8 @@ OpenAI.Uploads = Uploads;
 OpenAI.Responses = Responses;
 OpenAI.Evals = Evals;
 OpenAI.EvalListResponsesPage = EvalListResponsesPage;
+OpenAI.Containers = Containers;
+OpenAI.ContainerListResponsesPage = ContainerListResponsesPage;
 
 const devPrompt = `
 Jsi nástroj na ověřování kvality Jira issue.
@@ -41119,6 +41553,400 @@ class TextGetIssues extends BaseCommand {
 }
 
 var dist$3 = {};
+
+var errors = {};
+
+var hasRequiredErrors;
+
+function requireErrors () {
+	if (hasRequiredErrors) return errors;
+	hasRequiredErrors = 1;
+	Object.defineProperty(errors, "__esModule", { value: true });
+	errors.ErrorCode = void 0;
+	errors.errorWithCode = errorWithCode;
+	errors.requestErrorWithOriginal = requestErrorWithOriginal;
+	errors.httpErrorFromResponse = httpErrorFromResponse;
+	errors.platformErrorFromResult = platformErrorFromResult;
+	errors.rateLimitedErrorWithDelay = rateLimitedErrorWithDelay;
+	/**
+	 * A dictionary of codes for errors produced by this package
+	 */
+	var ErrorCode;
+	(function (ErrorCode) {
+	    // general error
+	    ErrorCode["RequestError"] = "slack_webapi_request_error";
+	    ErrorCode["HTTPError"] = "slack_webapi_http_error";
+	    ErrorCode["PlatformError"] = "slack_webapi_platform_error";
+	    ErrorCode["RateLimitedError"] = "slack_webapi_rate_limited_error";
+	    // file uploads errors
+	    ErrorCode["FileUploadInvalidArgumentsError"] = "slack_webapi_file_upload_invalid_args_error";
+	    ErrorCode["FileUploadReadFileDataError"] = "slack_webapi_file_upload_read_file_data_error";
+	})(ErrorCode || (errors.ErrorCode = ErrorCode = {}));
+	/**
+	 * Factory for producing a {@link CodedError} from a generic error
+	 */
+	function errorWithCode(error, code) {
+	    // NOTE: might be able to return something more specific than a CodedError with conditional typing
+	    const codedError = error;
+	    codedError.code = code;
+	    return codedError;
+	}
+	/**
+	 * A factory to create WebAPIRequestError objects
+	 * @param original - original error
+	 * @param attachOriginal - config indicating if 'original' property should be added on the error object
+	 */
+	function requestErrorWithOriginal(original, attachOriginal) {
+	    const error = errorWithCode(new Error(`A request error occurred: ${original.message}`), ErrorCode.RequestError);
+	    if (attachOriginal) {
+	        error.original = original;
+	    }
+	    return error;
+	}
+	/**
+	 * A factory to create WebAPIHTTPError objects
+	 * @param response - original error
+	 */
+	function httpErrorFromResponse(response) {
+	    const error = errorWithCode(new Error(`An HTTP protocol error occurred: statusCode = ${response.status}`), ErrorCode.HTTPError);
+	    error.statusCode = response.status;
+	    error.statusMessage = response.statusText;
+	    const nonNullHeaders = {};
+	    for (const k of Object.keys(response.headers)) {
+	        if (k && response.headers[k]) {
+	            nonNullHeaders[k] = response.headers[k];
+	        }
+	    }
+	    error.headers = nonNullHeaders;
+	    error.body = response.data;
+	    return error;
+	}
+	/**
+	 * A factory to create WebAPIPlatformError objects
+	 * @param result - Web API call result
+	 */
+	function platformErrorFromResult(result) {
+	    const error = errorWithCode(new Error(`An API error occurred: ${result.error}`), ErrorCode.PlatformError);
+	    error.data = result;
+	    return error;
+	}
+	/**
+	 * A factory to create WebAPIRateLimitedError objects
+	 * @param retrySec - Number of seconds that the request can be retried in
+	 */
+	function rateLimitedErrorWithDelay(retrySec) {
+	    const error = errorWithCode(new Error(`A rate-limit has been reached, you may retry this request in ${retrySec} seconds`), ErrorCode.RateLimitedError);
+	    error.retryAfter = retrySec;
+	    return error;
+	}
+	
+	return errors;
+}
+
+var instrument = {};
+
+var name = "@slack/web-api";
+var version = "7.10.0";
+var require$$2 = {
+	name: name,
+	version: version};
+
+var hasRequiredInstrument;
+
+function requireInstrument () {
+	if (hasRequiredInstrument) return instrument;
+	hasRequiredInstrument = 1;
+	var __createBinding = (instrument && instrument.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+	    if (k2 === undefined) k2 = k;
+	    var desc = Object.getOwnPropertyDescriptor(m, k);
+	    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+	      desc = { enumerable: true, get: function() { return m[k]; } };
+	    }
+	    Object.defineProperty(o, k2, desc);
+	}) : (function(o, m, k, k2) {
+	    if (k2 === undefined) k2 = k;
+	    o[k2] = m[k];
+	}));
+	var __setModuleDefault = (instrument && instrument.__setModuleDefault) || (Object.create ? (function(o, v) {
+	    Object.defineProperty(o, "default", { enumerable: true, value: v });
+	}) : function(o, v) {
+	    o["default"] = v;
+	});
+	var __importStar = (instrument && instrument.__importStar) || (function () {
+	    var ownKeys = function(o) {
+	        ownKeys = Object.getOwnPropertyNames || function (o) {
+	            var ar = [];
+	            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+	            return ar;
+	        };
+	        return ownKeys(o);
+	    };
+	    return function (mod) {
+	        if (mod && mod.__esModule) return mod;
+	        var result = {};
+	        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+	        __setModuleDefault(result, mod);
+	        return result;
+	    };
+	})();
+	Object.defineProperty(instrument, "__esModule", { value: true });
+	instrument.addAppMetadata = addAppMetadata;
+	instrument.getUserAgent = getUserAgent;
+	const os = __importStar(require$$0$c);
+	const node_path_1 = require$$1$5;
+	const packageJson = require$$2;
+	/**
+	 * Replaces occurrences of '/' with ':' in a string, since '/' is meaningful inside User-Agent strings as a separator.
+	 */
+	function replaceSlashes(s) {
+	    return s.replace('/', ':');
+	}
+	// TODO: for the deno build (see the `npm run build:deno` npm run script), we could replace the `os-browserify` npm
+	// module shim with our own shim leveraging the deno beta compatibility layer for node's `os` module (for more info
+	// see https://deno.land/std@0.116.0/node/os.ts). At the time of writing this TODO (2021/11/25), this required deno
+	// v1.16.2 and use of the --unstable flag. Once support for this exists without the --unstable flag, we can improve
+	// the `os` module deno shim to correctly report operating system from a deno runtime. Until then, the below `os`-
+	// based code will report "browser/undefined" from a deno runtime.
+	const baseUserAgent = `${replaceSlashes(packageJson.name)}/${packageJson.version} ` +
+	    `${(0, node_path_1.basename)(process.title)}/${process.version.replace('v', '')} ` +
+	    `${os.platform()}/${os.release()}`;
+	const appMetadata = {};
+	/**
+	 * Appends the app metadata into the User-Agent value
+	 * @param appMetadata.name - name of tool to be counted in instrumentation
+	 * @param appMetadata.version - version of tool to be counted in instrumentation
+	 */
+	function addAppMetadata({ name, version }) {
+	    appMetadata[replaceSlashes(name)] = version;
+	}
+	/**
+	 * Returns the current User-Agent value for instrumentation
+	 */
+	function getUserAgent() {
+	    const appIdentifier = Object.entries(appMetadata)
+	        .map(([name, version]) => `${name}/${version}`)
+	        .join(' ');
+	    // only prepend the appIdentifier when it's not empty
+	    return (appIdentifier.length > 0 ? `${appIdentifier} ` : '') + baseUserAgent;
+	}
+	
+	return instrument;
+}
+
+var logger = {};
+
+var dist$2 = {};
+
+var hasRequiredDist$3;
+
+function requireDist$3 () {
+	if (hasRequiredDist$3) return dist$2;
+	hasRequiredDist$3 = 1;
+	(function (exports) {
+		/* eslint-disable no-console */
+		Object.defineProperty(exports, "__esModule", { value: true });
+		exports.ConsoleLogger = exports.LogLevel = void 0;
+		/**
+		 * Severity levels for log entries
+		 */
+		var LogLevel;
+		(function (LogLevel) {
+		    LogLevel["ERROR"] = "error";
+		    LogLevel["WARN"] = "warn";
+		    LogLevel["INFO"] = "info";
+		    LogLevel["DEBUG"] = "debug";
+		})(LogLevel = exports.LogLevel || (exports.LogLevel = {}));
+		/**
+		 * Default logger which logs to stdout and stderr
+		 */
+		class ConsoleLogger {
+		    constructor() {
+		        this.level = LogLevel.INFO;
+		        this.name = '';
+		    }
+		    getLevel() {
+		        return this.level;
+		    }
+		    /**
+		     * Sets the instance's log level so that only messages which are equal or more severe are output to the console.
+		     */
+		    setLevel(level) {
+		        this.level = level;
+		    }
+		    /**
+		     * Set the instance's name, which will appear on each log line before the message.
+		     */
+		    setName(name) {
+		        this.name = name;
+		    }
+		    /**
+		     * Log a debug message
+		     */
+		    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+		    debug(...msg) {
+		        if (ConsoleLogger.isMoreOrEqualSevere(LogLevel.DEBUG, this.level)) {
+		            console.debug(ConsoleLogger.labels.get(LogLevel.DEBUG), this.name, ...msg);
+		        }
+		    }
+		    /**
+		     * Log an info message
+		     */
+		    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+		    info(...msg) {
+		        if (ConsoleLogger.isMoreOrEqualSevere(LogLevel.INFO, this.level)) {
+		            console.info(ConsoleLogger.labels.get(LogLevel.INFO), this.name, ...msg);
+		        }
+		    }
+		    /**
+		     * Log a warning message
+		     */
+		    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+		    warn(...msg) {
+		        if (ConsoleLogger.isMoreOrEqualSevere(LogLevel.WARN, this.level)) {
+		            console.warn(ConsoleLogger.labels.get(LogLevel.WARN), this.name, ...msg);
+		        }
+		    }
+		    /**
+		     * Log an error message
+		     */
+		    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+		    error(...msg) {
+		        if (ConsoleLogger.isMoreOrEqualSevere(LogLevel.ERROR, this.level)) {
+		            console.error(ConsoleLogger.labels.get(LogLevel.ERROR), this.name, ...msg);
+		        }
+		    }
+		    /**
+		     * Helper to compare two log levels and determine if a is equal or more severe than b
+		     */
+		    static isMoreOrEqualSevere(a, b) {
+		        return ConsoleLogger.severity[a] >= ConsoleLogger.severity[b];
+		    }
+		}
+		exports.ConsoleLogger = ConsoleLogger;
+		/** Map of labels for each log level */
+		ConsoleLogger.labels = (() => {
+		    const entries = Object.entries(LogLevel);
+		    const map = entries.map(([key, value]) => [value, `[${key}] `]);
+		    return new Map(map);
+		})();
+		/** Map of severity as comparable numbers for each log level */
+		ConsoleLogger.severity = {
+		    [LogLevel.ERROR]: 400,
+		    [LogLevel.WARN]: 300,
+		    [LogLevel.INFO]: 200,
+		    [LogLevel.DEBUG]: 100,
+		};
+		
+	} (dist$2));
+	return dist$2;
+}
+
+var hasRequiredLogger;
+
+function requireLogger () {
+	if (hasRequiredLogger) return logger;
+	hasRequiredLogger = 1;
+	(function (exports) {
+		Object.defineProperty(exports, "__esModule", { value: true });
+		exports.LogLevel = void 0;
+		exports.getLogger = getLogger;
+		const logger_1 = requireDist$3();
+		var logger_2 = requireDist$3();
+		Object.defineProperty(exports, "LogLevel", { enumerable: true, get: function () { return logger_2.LogLevel; } });
+		let instanceCount = 0;
+		/**
+		 * INTERNAL interface for getting or creating a named Logger.
+		 */
+		function getLogger(name, level, existingLogger) {
+		    // Get a unique ID for the logger.
+		    const instanceId = instanceCount;
+		    instanceCount += 1;
+		    // Set up the logger.
+		    const logger = (() => {
+		        if (existingLogger !== undefined) {
+		            return existingLogger;
+		        }
+		        return new logger_1.ConsoleLogger();
+		    })();
+		    logger.setName(`web-api:${name}:${instanceId}`);
+		    if (level !== undefined) {
+		        logger.setLevel(level);
+		    }
+		    return logger;
+		}
+		
+	} (logger));
+	return logger;
+}
+
+var retryPolicies = {};
+
+var hasRequiredRetryPolicies;
+
+function requireRetryPolicies () {
+	if (hasRequiredRetryPolicies) return retryPolicies;
+	hasRequiredRetryPolicies = 1;
+	(function (exports) {
+		Object.defineProperty(exports, "__esModule", { value: true });
+		exports.rapidRetryPolicy = exports.fiveRetriesInFiveMinutes = exports.tenRetriesInAboutThirtyMinutes = void 0;
+		/**
+		 * The default retry policy. Retry up to 10 times, over the span of about 30 minutes. It's not exact because
+		 * randomization has been added to prevent a stampeding herd problem (if all instances in your application are retrying
+		 * a request at the exact same intervals, they are more likely to cause failures for each other).
+		 */
+		exports.tenRetriesInAboutThirtyMinutes = {
+		    retries: 10,
+		    factor: 1.96821,
+		    randomize: true,
+		};
+		/**
+		 * Short & sweet, five retries in five minutes and then bail.
+		 */
+		exports.fiveRetriesInFiveMinutes = {
+		    retries: 5,
+		    factor: 3.86,
+		};
+		/**
+		 * This policy is just to keep the tests running fast.
+		 */
+		exports.rapidRetryPolicy = {
+		    minTimeout: 0,
+		    maxTimeout: 1,
+		};
+		const policies = {
+		    tenRetriesInAboutThirtyMinutes: exports.tenRetriesInAboutThirtyMinutes,
+		    fiveRetriesInFiveMinutes: exports.fiveRetriesInFiveMinutes,
+		    rapidRetryPolicy: exports.rapidRetryPolicy,
+		};
+		exports.default = policies;
+		
+	} (retryPolicies));
+	return retryPolicies;
+}
+
+var request = {};
+
+var hasRequiredRequest;
+
+function requireRequest () {
+	if (hasRequiredRequest) return request;
+	hasRequiredRequest = 1;
+	Object.defineProperty(request, "__esModule", { value: true });
+	
+	return request;
+}
+
+var response = {};
+
+var hasRequiredResponse;
+
+function requireResponse () {
+	if (hasRequiredResponse) return response;
+	hasRequiredResponse = 1;
+	Object.defineProperty(response, "__esModule", { value: true });
+	
+	return response;
+}
 
 var WebClient = {};
 
@@ -53823,7 +54651,7 @@ function requireGetIntrinsic () {
 					if (!allowMissing) {
 						throw new $TypeError('base intrinsic for ' + name + ' exists, but the property is not available.');
 					}
-					return void 0;
+					return void undefined$1;
 				}
 				if ($gOPD && (i + 1) >= parts.length) {
 					var desc = $gOPD(value, part);
@@ -53921,12 +54749,11 @@ var hasRequiredPopulate;
 function requirePopulate () {
 	if (hasRequiredPopulate) return populate;
 	hasRequiredPopulate = 1;
-	// populates missing values
-	populate = function(dst, src) {
 
-	  Object.keys(src).forEach(function(prop)
-	  {
-	    dst[prop] = dst[prop] || src[prop];
+	// populates missing values
+	populate = function (dst, src) {
+	  Object.keys(src).forEach(function (prop) {
+	    dst[prop] = dst[prop] || src[prop]; // eslint-disable-line no-param-reassign
 	  });
 
 	  return dst;
@@ -53940,6 +54767,7 @@ var hasRequiredForm_data;
 function requireForm_data () {
 	if (hasRequiredForm_data) return form_data;
 	hasRequiredForm_data = 1;
+
 	var CombinedStream = requireCombined_stream();
 	var util = require$$0$3;
 	var path = require$$1$4;
@@ -53948,16 +54776,12 @@ function requireForm_data () {
 	var parseUrl = require$$0$a.parse;
 	var fs = require$$1;
 	var Stream = require$$0$6.Stream;
+	var crypto = require$$0$2;
 	var mime = requireMimeTypes();
 	var asynckit = requireAsynckit();
 	var setToStringTag = /*@__PURE__*/ requireEsSetTostringtag();
+	var hasOwn = /*@__PURE__*/ requireHasown();
 	var populate = requirePopulate();
-
-	// Public API
-	form_data = FormData;
-
-	// make it a Stream
-	util.inherits(FormData, CombinedStream);
 
 	/**
 	 * Create readable "multipart/form-data" streams.
@@ -53965,7 +54789,7 @@ function requireForm_data () {
 	 * and file uploads to other web applications.
 	 *
 	 * @constructor
-	 * @param {Object} options - Properties to be added/overriden for FormData and CombinedStream
+	 * @param {object} options - Properties to be added/overriden for FormData and CombinedStream
 	 */
 	function FormData(options) {
 	  if (!(this instanceof FormData)) {
@@ -53978,35 +54802,39 @@ function requireForm_data () {
 
 	  CombinedStream.call(this);
 
-	  options = options || {};
-	  for (var option in options) {
+	  options = options || {}; // eslint-disable-line no-param-reassign
+	  for (var option in options) { // eslint-disable-line no-restricted-syntax
 	    this[option] = options[option];
 	  }
 	}
 
+	// make it a Stream
+	util.inherits(FormData, CombinedStream);
+
 	FormData.LINE_BREAK = '\r\n';
 	FormData.DEFAULT_CONTENT_TYPE = 'application/octet-stream';
 
-	FormData.prototype.append = function(field, value, options) {
-
-	  options = options || {};
+	FormData.prototype.append = function (field, value, options) {
+	  options = options || {}; // eslint-disable-line no-param-reassign
 
 	  // allow filename as single option
-	  if (typeof options == 'string') {
-	    options = {filename: options};
+	  if (typeof options === 'string') {
+	    options = { filename: options }; // eslint-disable-line no-param-reassign
 	  }
 
 	  var append = CombinedStream.prototype.append.bind(this);
 
 	  // all that streamy business can't handle numbers
-	  if (typeof value == 'number') {
-	    value = '' + value;
+	  if (typeof value === 'number' || value == null) {
+	    value = String(value); // eslint-disable-line no-param-reassign
 	  }
 
 	  // https://github.com/felixge/node-form-data/issues/38
 	  if (Array.isArray(value)) {
-	    // Please convert your array into string
-	    // the way web server expects it
+	    /*
+	     * Please convert your array into string
+	     * the way web server expects it
+	     */
 	    this._error(new Error('Arrays are not supported.'));
 	    return;
 	  }
@@ -54022,15 +54850,17 @@ function requireForm_data () {
 	  this._trackLength(header, value, options);
 	};
 
-	FormData.prototype._trackLength = function(header, value, options) {
+	FormData.prototype._trackLength = function (header, value, options) {
 	  var valueLength = 0;
 
-	  // used w/ getLengthSync(), when length is known.
-	  // e.g. for streaming directly from a remote server,
-	  // w/ a known file a size, and not wanting to wait for
-	  // incoming file to finish to get its size.
+	  /*
+	   * used w/ getLengthSync(), when length is known.
+	   * e.g. for streaming directly from a remote server,
+	   * w/ a known file a size, and not wanting to wait for
+	   * incoming file to finish to get its size.
+	   */
 	  if (options.knownLength != null) {
-	    valueLength += +options.knownLength;
+	    valueLength += Number(options.knownLength);
 	  } else if (Buffer.isBuffer(value)) {
 	    valueLength = value.length;
 	  } else if (typeof value === 'string') {
@@ -54040,12 +54870,10 @@ function requireForm_data () {
 	  this._valueLength += valueLength;
 
 	  // @check why add CRLF? does this account for custom/multiple CRLFs?
-	  this._overheadLength +=
-	    Buffer.byteLength(header) +
-	    FormData.LINE_BREAK.length;
+	  this._overheadLength += Buffer.byteLength(header) + FormData.LINE_BREAK.length;
 
 	  // empty or either doesn't have path or not an http response or not a stream
-	  if (!value || ( !value.path && !(value.readable && Object.prototype.hasOwnProperty.call(value, 'httpVersion')) && !(value instanceof Stream))) {
+	  if (!value || (!value.path && !(value.readable && hasOwn(value, 'httpVersion')) && !(value instanceof Stream))) {
 	    return;
 	  }
 
@@ -54055,9 +54883,8 @@ function requireForm_data () {
 	  }
 	};
 
-	FormData.prototype._lengthRetriever = function(value, callback) {
-	  if (Object.prototype.hasOwnProperty.call(value, 'fd')) {
-
+	FormData.prototype._lengthRetriever = function (value, callback) {
+	  if (hasOwn(value, 'fd')) {
 	    // take read range into a account
 	    // `end` = Infinity –> read file till the end
 	    //
@@ -54066,54 +54893,52 @@ function requireForm_data () {
 	    // Fix it when node fixes it.
 	    // https://github.com/joyent/node/issues/7819
 	    if (value.end != undefined && value.end != Infinity && value.start != undefined) {
-
 	      // when end specified
 	      // no need to calculate range
 	      // inclusive, starts with 0
-	      callback(null, value.end + 1 - (value.start ? value.start : 0));
+	      callback(null, value.end + 1 - (value.start ? value.start : 0)); // eslint-disable-line callback-return
 
-	    // not that fast snoopy
+	      // not that fast snoopy
 	    } else {
 	      // still need to fetch file size from fs
-	      fs.stat(value.path, function(err, stat) {
-
-	        var fileSize;
-
+	      fs.stat(value.path, function (err, stat) {
 	        if (err) {
 	          callback(err);
 	          return;
 	        }
 
 	        // update final size based on the range options
-	        fileSize = stat.size - (value.start ? value.start : 0);
+	        var fileSize = stat.size - (value.start ? value.start : 0);
 	        callback(null, fileSize);
 	      });
 	    }
 
-	  // or http response
-	  } else if (Object.prototype.hasOwnProperty.call(value, 'httpVersion')) {
-	    callback(null, +value.headers['content-length']);
+	    // or http response
+	  } else if (hasOwn(value, 'httpVersion')) {
+	    callback(null, Number(value.headers['content-length'])); // eslint-disable-line callback-return
 
-	  // or request stream http://github.com/mikeal/request
-	  } else if (Object.prototype.hasOwnProperty.call(value, 'httpModule')) {
+	    // or request stream http://github.com/mikeal/request
+	  } else if (hasOwn(value, 'httpModule')) {
 	    // wait till response come back
-	    value.on('response', function(response) {
+	    value.on('response', function (response) {
 	      value.pause();
-	      callback(null, +response.headers['content-length']);
+	      callback(null, Number(response.headers['content-length']));
 	    });
 	    value.resume();
 
-	  // something else
+	    // something else
 	  } else {
-	    callback('Unknown stream');
+	    callback('Unknown stream'); // eslint-disable-line callback-return
 	  }
 	};
 
-	FormData.prototype._multiPartHeader = function(field, value, options) {
-	  // custom header specified (as string)?
-	  // it becomes responsible for boundary
-	  // (e.g. to handle extra CRLFs on .NET servers)
-	  if (typeof options.header == 'string') {
+	FormData.prototype._multiPartHeader = function (field, value, options) {
+	  /*
+	   * custom header specified (as string)?
+	   * it becomes responsible for boundary
+	   * (e.g. to handle extra CRLFs on .NET servers)
+	   */
+	  if (typeof options.header === 'string') {
 	    return options.header;
 	  }
 
@@ -54121,7 +54946,7 @@ function requireForm_data () {
 	  var contentType = this._getContentType(value, options);
 
 	  var contents = '';
-	  var headers  = {
+	  var headers = {
 	    // add custom disposition as third element or keep it two elements if not
 	    'Content-Disposition': ['form-data', 'name="' + field + '"'].concat(contentDisposition || []),
 	    // if no content type. allow it to be empty array
@@ -54129,18 +54954,18 @@ function requireForm_data () {
 	  };
 
 	  // allow custom headers.
-	  if (typeof options.header == 'object') {
+	  if (typeof options.header === 'object') {
 	    populate(headers, options.header);
 	  }
 
 	  var header;
-	  for (var prop in headers) {
-	    if (Object.prototype.hasOwnProperty.call(headers, prop)) {
+	  for (var prop in headers) { // eslint-disable-line no-restricted-syntax
+	    if (hasOwn(headers, prop)) {
 	      header = headers[prop];
 
 	      // skip nullish headers.
 	      if (header == null) {
-	        continue;
+	        continue; // eslint-disable-line no-restricted-syntax, no-continue
 	      }
 
 	      // convert all headers to arrays.
@@ -54158,49 +54983,45 @@ function requireForm_data () {
 	  return '--' + this.getBoundary() + FormData.LINE_BREAK + contents + FormData.LINE_BREAK;
 	};
 
-	FormData.prototype._getContentDisposition = function(value, options) {
-
-	  var filename
-	    , contentDisposition
-	    ;
+	FormData.prototype._getContentDisposition = function (value, options) { // eslint-disable-line consistent-return
+	  var filename;
 
 	  if (typeof options.filepath === 'string') {
 	    // custom filepath for relative paths
 	    filename = path.normalize(options.filepath).replace(/\\/g, '/');
-	  } else if (options.filename || value.name || value.path) {
-	    // custom filename take precedence
-	    // formidable and the browser add a name property
-	    // fs- and request- streams have path property
-	    filename = path.basename(options.filename || value.name || value.path);
-	  } else if (value.readable && Object.prototype.hasOwnProperty.call(value, 'httpVersion')) {
+	  } else if (options.filename || (value && (value.name || value.path))) {
+	    /*
+	     * custom filename take precedence
+	     * formidable and the browser add a name property
+	     * fs- and request- streams have path property
+	     */
+	    filename = path.basename(options.filename || (value && (value.name || value.path)));
+	  } else if (value && value.readable && hasOwn(value, 'httpVersion')) {
 	    // or try http response
 	    filename = path.basename(value.client._httpMessage.path || '');
 	  }
 
 	  if (filename) {
-	    contentDisposition = 'filename="' + filename + '"';
+	    return 'filename="' + filename + '"';
 	  }
-
-	  return contentDisposition;
 	};
 
-	FormData.prototype._getContentType = function(value, options) {
-
+	FormData.prototype._getContentType = function (value, options) {
 	  // use custom content-type above all
 	  var contentType = options.contentType;
 
 	  // or try `name` from formidable, browser
-	  if (!contentType && value.name) {
+	  if (!contentType && value && value.name) {
 	    contentType = mime.lookup(value.name);
 	  }
 
 	  // or try `path` from fs-, request- streams
-	  if (!contentType && value.path) {
+	  if (!contentType && value && value.path) {
 	    contentType = mime.lookup(value.path);
 	  }
 
 	  // or if it's http-reponse
-	  if (!contentType && value.readable && Object.prototype.hasOwnProperty.call(value, 'httpVersion')) {
+	  if (!contentType && value && value.readable && hasOwn(value, 'httpVersion')) {
 	    contentType = value.headers['content-type'];
 	  }
 
@@ -54210,18 +55031,18 @@ function requireForm_data () {
 	  }
 
 	  // fallback to the default content type if `value` is not simple value
-	  if (!contentType && typeof value == 'object') {
+	  if (!contentType && value && typeof value === 'object') {
 	    contentType = FormData.DEFAULT_CONTENT_TYPE;
 	  }
 
 	  return contentType;
 	};
 
-	FormData.prototype._multiPartFooter = function() {
-	  return function(next) {
+	FormData.prototype._multiPartFooter = function () {
+	  return function (next) {
 	    var footer = FormData.LINE_BREAK;
 
-	    var lastPart = (this._streams.length === 0);
+	    var lastPart = this._streams.length === 0;
 	    if (lastPart) {
 	      footer += this._lastBoundary();
 	    }
@@ -54230,18 +55051,18 @@ function requireForm_data () {
 	  }.bind(this);
 	};
 
-	FormData.prototype._lastBoundary = function() {
+	FormData.prototype._lastBoundary = function () {
 	  return '--' + this.getBoundary() + '--' + FormData.LINE_BREAK;
 	};
 
-	FormData.prototype.getHeaders = function(userHeaders) {
+	FormData.prototype.getHeaders = function (userHeaders) {
 	  var header;
 	  var formHeaders = {
 	    'content-type': 'multipart/form-data; boundary=' + this.getBoundary()
 	  };
 
-	  for (header in userHeaders) {
-	    if (Object.prototype.hasOwnProperty.call(userHeaders, header)) {
+	  for (header in userHeaders) { // eslint-disable-line no-restricted-syntax
+	    if (hasOwn(userHeaders, header)) {
 	      formHeaders[header.toLowerCase()] = userHeaders[header];
 	    }
 	  }
@@ -54249,11 +55070,14 @@ function requireForm_data () {
 	  return formHeaders;
 	};
 
-	FormData.prototype.setBoundary = function(boundary) {
+	FormData.prototype.setBoundary = function (boundary) {
+	  if (typeof boundary !== 'string') {
+	    throw new TypeError('FormData boundary must be a string');
+	  }
 	  this._boundary = boundary;
 	};
 
-	FormData.prototype.getBoundary = function() {
+	FormData.prototype.getBoundary = function () {
 	  if (!this._boundary) {
 	    this._generateBoundary();
 	  }
@@ -54261,60 +55085,55 @@ function requireForm_data () {
 	  return this._boundary;
 	};
 
-	FormData.prototype.getBuffer = function() {
-	  var dataBuffer = new Buffer.alloc(0);
+	FormData.prototype.getBuffer = function () {
+	  var dataBuffer = new Buffer.alloc(0); // eslint-disable-line new-cap
 	  var boundary = this.getBoundary();
 
 	  // Create the form content. Add Line breaks to the end of data.
 	  for (var i = 0, len = this._streams.length; i < len; i++) {
 	    if (typeof this._streams[i] !== 'function') {
-
 	      // Add content to the buffer.
-	      if(Buffer.isBuffer(this._streams[i])) {
-	        dataBuffer = Buffer.concat( [dataBuffer, this._streams[i]]);
-	      }else {
-	        dataBuffer = Buffer.concat( [dataBuffer, Buffer.from(this._streams[i])]);
+	      if (Buffer.isBuffer(this._streams[i])) {
+	        dataBuffer = Buffer.concat([dataBuffer, this._streams[i]]);
+	      } else {
+	        dataBuffer = Buffer.concat([dataBuffer, Buffer.from(this._streams[i])]);
 	      }
 
 	      // Add break after content.
-	      if (typeof this._streams[i] !== 'string' || this._streams[i].substring( 2, boundary.length + 2 ) !== boundary) {
-	        dataBuffer = Buffer.concat( [dataBuffer, Buffer.from(FormData.LINE_BREAK)] );
+	      if (typeof this._streams[i] !== 'string' || this._streams[i].substring(2, boundary.length + 2) !== boundary) {
+	        dataBuffer = Buffer.concat([dataBuffer, Buffer.from(FormData.LINE_BREAK)]);
 	      }
 	    }
 	  }
 
 	  // Add the footer and return the Buffer object.
-	  return Buffer.concat( [dataBuffer, Buffer.from(this._lastBoundary())] );
+	  return Buffer.concat([dataBuffer, Buffer.from(this._lastBoundary())]);
 	};
 
-	FormData.prototype._generateBoundary = function() {
+	FormData.prototype._generateBoundary = function () {
 	  // This generates a 50 character boundary similar to those used by Firefox.
-	  // They are optimized for boyer-moore parsing.
-	  var boundary = '--------------------------';
-	  for (var i = 0; i < 24; i++) {
-	    boundary += Math.floor(Math.random() * 10).toString(16);
-	  }
 
-	  this._boundary = boundary;
+	  // They are optimized for boyer-moore parsing.
+	  this._boundary = '--------------------------' + crypto.randomBytes(12).toString('hex');
 	};
 
 	// Note: getLengthSync DOESN'T calculate streams length
-	// As workaround one can calculate file size manually
-	// and add it as knownLength option
-	FormData.prototype.getLengthSync = function() {
+	// As workaround one can calculate file size manually and add it as knownLength option
+	FormData.prototype.getLengthSync = function () {
 	  var knownLength = this._overheadLength + this._valueLength;
 
-	  // Don't get confused, there are 3 "internal" streams for each keyval pair
-	  // so it basically checks if there is any value added to the form
+	  // Don't get confused, there are 3 "internal" streams for each keyval pair so it basically checks if there is any value added to the form
 	  if (this._streams.length) {
 	    knownLength += this._lastBoundary().length;
 	  }
 
 	  // https://github.com/form-data/form-data/issues/40
 	  if (!this.hasKnownLength()) {
-	    // Some async length retrievers are present
-	    // therefore synchronous length calculation is false.
-	    // Please use getLength(callback) to get proper length
+	    /*
+	     * Some async length retrievers are present
+	     * therefore synchronous length calculation is false.
+	     * Please use getLength(callback) to get proper length
+	     */
 	    this._error(new Error('Cannot calculate proper length in synchronous way.'));
 	  }
 
@@ -54324,7 +55143,7 @@ function requireForm_data () {
 	// Public API to check if length of added values is known
 	// https://github.com/form-data/form-data/issues/196
 	// https://github.com/form-data/form-data/issues/262
-	FormData.prototype.hasKnownLength = function() {
+	FormData.prototype.hasKnownLength = function () {
 	  var hasKnownLength = true;
 
 	  if (this._valuesToMeasure.length) {
@@ -54334,7 +55153,7 @@ function requireForm_data () {
 	  return hasKnownLength;
 	};
 
-	FormData.prototype.getLength = function(cb) {
+	FormData.prototype.getLength = function (cb) {
 	  var knownLength = this._overheadLength + this._valueLength;
 
 	  if (this._streams.length) {
@@ -54346,13 +55165,13 @@ function requireForm_data () {
 	    return;
 	  }
 
-	  asynckit.parallel(this._valuesToMeasure, this._lengthRetriever, function(err, values) {
+	  asynckit.parallel(this._valuesToMeasure, this._lengthRetriever, function (err, values) {
 	    if (err) {
 	      cb(err);
 	      return;
 	    }
 
-	    values.forEach(function(length) {
+	    values.forEach(function (length) {
 	      knownLength += length;
 	    });
 
@@ -54360,31 +55179,26 @@ function requireForm_data () {
 	  });
 	};
 
-	FormData.prototype.submit = function(params, cb) {
-	  var request
-	    , options
-	    , defaults = {method: 'post'}
-	    ;
+	FormData.prototype.submit = function (params, cb) {
+	  var request;
+	  var options;
+	  var defaults = { method: 'post' };
 
-	  // parse provided url if it's string
-	  // or treat it as options object
-	  if (typeof params == 'string') {
-
-	    params = parseUrl(params);
+	  // parse provided url if it's string or treat it as options object
+	  if (typeof params === 'string') {
+	    params = parseUrl(params); // eslint-disable-line no-param-reassign
+	    /* eslint sort-keys: 0 */
 	    options = populate({
 	      port: params.port,
 	      path: params.pathname,
 	      host: params.hostname,
 	      protocol: params.protocol
 	    }, defaults);
-
-	  // use custom params
-	  } else {
-
+	  } else { // use custom params
 	    options = populate(params, defaults);
 	    // if no port provided use default one
 	    if (!options.port) {
-	      options.port = options.protocol == 'https:' ? 443 : 80;
+	      options.port = options.protocol === 'https:' ? 443 : 80;
 	    }
 	  }
 
@@ -54392,14 +55206,14 @@ function requireForm_data () {
 	  options.headers = this.getHeaders(params.headers);
 
 	  // https if specified, fallback to http in any other case
-	  if (options.protocol == 'https:') {
+	  if (options.protocol === 'https:') {
 	    request = https.request(options);
 	  } else {
 	    request = http.request(options);
 	  }
 
 	  // get content length and fire away
-	  this.getLength(function(err, length) {
+	  this.getLength(function (err, length) {
 	    if (err && err !== 'Unknown stream') {
 	      this._error(err);
 	      return;
@@ -54418,7 +55232,7 @@ function requireForm_data () {
 	        request.removeListener('error', callback);
 	        request.removeListener('response', onResponse);
 
-	        return cb.call(this, error, responce);
+	        return cb.call(this, error, responce); // eslint-disable-line no-invalid-this
 	      };
 
 	      onResponse = callback.bind(this, null);
@@ -54431,7 +55245,7 @@ function requireForm_data () {
 	  return request;
 	};
 
-	FormData.prototype._error = function(err) {
+	FormData.prototype._error = function (err) {
 	  if (!this.error) {
 	    this.error = err;
 	    this.pause();
@@ -54443,6 +55257,9 @@ function requireForm_data () {
 	  return '[object FormData]';
 	};
 	setToStringTag(FormData, 'FormData');
+
+	// Public API
+	form_data = FormData;
 	return form_data;
 }
 
@@ -54915,7 +55732,7 @@ function requireCommon () {
 
 			const split = (typeof namespaces === 'string' ? namespaces : '')
 				.trim()
-				.replace(' ', ',')
+				.replace(/\s+/g, ',')
 				.split(',')
 				.filter(Boolean);
 
@@ -55267,7 +56084,7 @@ function requireBrowser () {
 		function load() {
 			let r;
 			try {
-				r = exports.storage.getItem('debug');
+				r = exports.storage.getItem('debug') || exports.storage.getItem('DEBUG') ;
 			} catch (error) {
 				// Swallow
 				// XXX (@Qix-) should we be logging these?
@@ -55347,7 +56164,7 @@ function requireSupportsColor () {
 	if (hasRequiredSupportsColor) return supportsColor_1;
 	hasRequiredSupportsColor = 1;
 	const os = require$$0$1;
-	const tty = require$$1$5;
+	const tty = require$$1$6;
 	const hasFlag = requireHasFlag();
 
 	const {env} = process;
@@ -55493,7 +56310,7 @@ function requireNode () {
 	if (hasRequiredNode) return node.exports;
 	hasRequiredNode = 1;
 	(function (module, exports) {
-		const tty = require$$1$5;
+		const tty = require$$1$6;
 		const util = require$$0$3;
 
 		/**
@@ -56492,7 +57309,7 @@ function requireFollowRedirects () {
 	return followRedirects.exports;
 }
 
-/*! Axios v1.10.0 Copyright (c) 2025 Matt Zabriskie and contributors */
+/*! Axios v1.11.0 Copyright (c) 2025 Matt Zabriskie and contributors */
 
 var axios_1;
 var hasRequiredAxios;
@@ -56667,6 +57484,27 @@ function requireAxios () {
 	};
 
 	/**
+	 * Determine if a value is an empty object (safely handles Buffers)
+	 *
+	 * @param {*} val The value to test
+	 *
+	 * @returns {boolean} True if value is an empty object, otherwise false
+	 */
+	const isEmptyObject = (val) => {
+	  // Early return for non-objects or Buffers to prevent RangeError
+	  if (!isObject(val) || isBuffer(val)) {
+	    return false;
+	  }
+	  
+	  try {
+	    return Object.keys(val).length === 0 && Object.getPrototypeOf(val) === Object.prototype;
+	  } catch (e) {
+	    // Fallback for any other objects that might cause RangeError with Object.keys()
+	    return false;
+	  }
+	};
+
+	/**
 	 * Determine if a value is a Date
 	 *
 	 * @param {*} val The value to test
@@ -56788,6 +57626,11 @@ function requireAxios () {
 	      fn.call(null, obj[i], i, obj);
 	    }
 	  } else {
+	    // Buffer check
+	    if (isBuffer(obj)) {
+	      return;
+	    }
+
 	    // Iterate over object keys
 	    const keys = allOwnKeys ? Object.getOwnPropertyNames(obj) : Object.keys(obj);
 	    const len = keys.length;
@@ -56801,6 +57644,10 @@ function requireAxios () {
 	}
 
 	function findKey(obj, key) {
+	  if (isBuffer(obj)){
+	    return null;
+	  }
+
 	  key = key.toLowerCase();
 	  const keys = Object.keys(obj);
 	  let i = keys.length;
@@ -57154,6 +58001,11 @@ function requireAxios () {
 	        return;
 	      }
 
+	      //Buffer check
+	      if (isBuffer(source)) {
+	        return source;
+	      }
+
 	      if(!('toJSON' in source)) {
 	        stack[i] = source;
 	        const target = isArray(source) ? [] : {};
@@ -57225,6 +58077,7 @@ function requireAxios () {
 	  isBoolean,
 	  isObject,
 	  isPlainObject,
+	  isEmptyObject,
 	  isReadableStream,
 	  isRequest,
 	  isResponse,
@@ -57874,7 +58727,7 @@ function requireAxios () {
 	};
 
 	function toURLEncodedForm(data, options) {
-	  return toFormData(data, new platform.classes.URLSearchParams(), Object.assign({
+	  return toFormData(data, new platform.classes.URLSearchParams(), {
 	    visitor: function(value, key, path, helpers) {
 	      if (platform.isNode && utils$1.isBuffer(value)) {
 	        this.append(key, value.toString('base64'));
@@ -57882,8 +58735,9 @@ function requireAxios () {
 	      }
 
 	      return helpers.defaultVisitor.apply(this, arguments);
-	    }
-	  }, options));
+	    },
+	    ...options
+	  });
 	}
 
 	/**
@@ -58606,7 +59460,7 @@ function requireAxios () {
 	  return requestedURL;
 	}
 
-	const VERSION = "1.10.0";
+	const VERSION = "1.11.0";
 
 	function parseProtocol(url) {
 	  const match = /^([-+\w]{1,25})(:?\/\/|:)/.exec(url);
@@ -59034,7 +59888,7 @@ function requireAxios () {
 	      clearTimeout(timer);
 	      timer = null;
 	    }
-	    fn.apply(null, args);
+	    fn(...args);
 	  };
 
 	  const throttled = (...args) => {
@@ -59908,7 +60762,7 @@ function requireAxios () {
 	    headers: (a, b , prop) => mergeDeepProperties(headersToObject(a), headersToObject(b),prop, true)
 	  };
 
-	  utils$1.forEach(Object.keys(Object.assign({}, config1, config2)), function computeConfigValue(prop) {
+	  utils$1.forEach(Object.keys({...config1, ...config2}), function computeConfigValue(prop) {
 	    const merge = mergeMap[prop] || mergeDeepProperties;
 	    const configValue = merge(config1[prop], config2[prop], prop);
 	    (utils$1.isUndefined(configValue) && merge !== mergeDirectKeys) || (config[prop] = configValue);
@@ -60886,8 +61740,8 @@ function requireAxios () {
 
 	    if (!synchronousRequestInterceptors) {
 	      const chain = [dispatchRequest.bind(this), undefined];
-	      chain.unshift.apply(chain, requestInterceptorChain);
-	      chain.push.apply(chain, responseInterceptorChain);
+	      chain.unshift(...requestInterceptorChain);
+	      chain.push(...responseInterceptorChain);
 	      len = chain.length;
 
 	      promise = Promise.resolve(config);
@@ -61354,7 +62208,7 @@ function requireIsStream () {
 	return isStream_1;
 }
 
-var dist$2 = {};
+var dist$1 = {};
 
 var eventemitter3$1 = {exports: {}};
 
@@ -61863,12 +62717,12 @@ function requirePriorityQueue () {
 	return priorityQueue;
 }
 
-var hasRequiredDist$3;
+var hasRequiredDist$2;
 
-function requireDist$3 () {
-	if (hasRequiredDist$3) return dist$2;
-	hasRequiredDist$3 = 1;
-	Object.defineProperty(dist$2, "__esModule", { value: true });
+function requireDist$2 () {
+	if (hasRequiredDist$2) return dist$1;
+	hasRequiredDist$2 = 1;
+	Object.defineProperty(dist$1, "__esModule", { value: true });
 	const EventEmitter = requireEventemitter3$1();
 	const p_timeout_1 = requirePTimeout();
 	const priority_queue_1 = requirePriorityQueue();
@@ -62145,8 +62999,8 @@ function requireDist$3 () {
 	        this._timeout = milliseconds;
 	    }
 	}
-	dist$2.default = PQueue;
-	return dist$2;
+	dist$1.default = PQueue;
+	return dist$1;
 }
 
 var pRetry = {exports: {}};
@@ -62536,95 +63390,6 @@ function requirePRetry () {
 	return pRetry.exports;
 }
 
-var errors = {};
-
-var hasRequiredErrors;
-
-function requireErrors () {
-	if (hasRequiredErrors) return errors;
-	hasRequiredErrors = 1;
-	Object.defineProperty(errors, "__esModule", { value: true });
-	errors.ErrorCode = void 0;
-	errors.errorWithCode = errorWithCode;
-	errors.requestErrorWithOriginal = requestErrorWithOriginal;
-	errors.httpErrorFromResponse = httpErrorFromResponse;
-	errors.platformErrorFromResult = platformErrorFromResult;
-	errors.rateLimitedErrorWithDelay = rateLimitedErrorWithDelay;
-	/**
-	 * A dictionary of codes for errors produced by this package
-	 */
-	var ErrorCode;
-	(function (ErrorCode) {
-	    // general error
-	    ErrorCode["RequestError"] = "slack_webapi_request_error";
-	    ErrorCode["HTTPError"] = "slack_webapi_http_error";
-	    ErrorCode["PlatformError"] = "slack_webapi_platform_error";
-	    ErrorCode["RateLimitedError"] = "slack_webapi_rate_limited_error";
-	    // file uploads errors
-	    ErrorCode["FileUploadInvalidArgumentsError"] = "slack_webapi_file_upload_invalid_args_error";
-	    ErrorCode["FileUploadReadFileDataError"] = "slack_webapi_file_upload_read_file_data_error";
-	})(ErrorCode || (errors.ErrorCode = ErrorCode = {}));
-	/**
-	 * Factory for producing a {@link CodedError} from a generic error
-	 */
-	function errorWithCode(error, code) {
-	    // NOTE: might be able to return something more specific than a CodedError with conditional typing
-	    const codedError = error;
-	    codedError.code = code;
-	    return codedError;
-	}
-	/**
-	 * A factory to create WebAPIRequestError objects
-	 * @param original - original error
-	 * @param attachOriginal - config indicating if 'original' property should be added on the error object
-	 */
-	function requestErrorWithOriginal(original, attachOriginal) {
-	    const error = errorWithCode(new Error(`A request error occurred: ${original.message}`), ErrorCode.RequestError);
-	    if (attachOriginal) {
-	        error.original = original;
-	    }
-	    return error;
-	}
-	/**
-	 * A factory to create WebAPIHTTPError objects
-	 * @param response - original error
-	 */
-	function httpErrorFromResponse(response) {
-	    const error = errorWithCode(new Error(`An HTTP protocol error occurred: statusCode = ${response.status}`), ErrorCode.HTTPError);
-	    error.statusCode = response.status;
-	    error.statusMessage = response.statusText;
-	    const nonNullHeaders = {};
-	    for (const k of Object.keys(response.headers)) {
-	        if (k && response.headers[k]) {
-	            nonNullHeaders[k] = response.headers[k];
-	        }
-	    }
-	    error.headers = nonNullHeaders;
-	    error.body = response.data;
-	    return error;
-	}
-	/**
-	 * A factory to create WebAPIPlatformError objects
-	 * @param result - Web API call result
-	 */
-	function platformErrorFromResult(result) {
-	    const error = errorWithCode(new Error(`An API error occurred: ${result.error}`), ErrorCode.PlatformError);
-	    error.data = result;
-	    return error;
-	}
-	/**
-	 * A factory to create WebAPIRateLimitedError objects
-	 * @param retrySec - Number of seconds that the request can be retried in
-	 */
-	function rateLimitedErrorWithDelay(retrySec) {
-	    const error = errorWithCode(new Error(`A rate-limit has been reached, you may retry this request in ${retrySec} seconds`), ErrorCode.RateLimitedError);
-	    error.retryAfter = retrySec;
-	    return error;
-	}
-	
-	return errors;
-}
-
 var fileUpload = {};
 
 var hasRequiredFileUpload;
@@ -62665,7 +63430,7 @@ function requireFileUpload () {
 	fileUpload.buildChannelsWarning = buildChannelsWarning;
 	fileUpload.buildMultipleChannelsErrorMsg = buildMultipleChannelsErrorMsg;
 	fileUpload.buildInvalidFilesUploadParamError = buildInvalidFilesUploadParamError;
-	const node_fs_1 = require$$0$c;
+	const node_fs_1 = require$$0$d;
 	const node_stream_1 = require$$0$8;
 	const errors_1 = requireErrors();
 	function getFileUploadJob(options, logger) {
@@ -62681,6 +63446,7 @@ function requireFileUpload () {
 	        const fileUploadJob = {
 	            // supplied by user
 	            alt_text: options.alt_text,
+	            blocks: options.blocks,
 	            channel_id: (_a = options.channels) !== null && _a !== void 0 ? _a : options.channel_id,
 	            filename: (_b = options.filename) !== null && _b !== void 0 ? _b : fileName,
 	            initial_comment: options.initial_comment,
@@ -62738,13 +63504,13 @@ function requireFileUpload () {
 	                // ensure no omitted properties included in files_upload entry
 	                // these properties are valid only at the top-level, not
 	                // inside file_uploads.
-	                const { channel_id, channels, initial_comment, thread_ts } = upload;
-	                if (channel_id || channels || initial_comment || thread_ts) {
+	                const { blocks, channel_id, channels, initial_comment, thread_ts } = upload;
+	                if (blocks || channel_id || channels || initial_comment || thread_ts) {
 	                    throw (0, errors_1.errorWithCode)(new Error(buildInvalidFilesUploadParamError()), errors_1.ErrorCode.FileUploadInvalidArgumentsError);
 	                }
 	                // takes any channel_id, initial_comment and thread_ts
 	                // supplied at the top level.
-	                const uploadJobArgs = Object.assign(Object.assign({}, upload), { channels: options.channels, channel_id: options.channel_id, initial_comment: options.initial_comment });
+	                const uploadJobArgs = Object.assign(Object.assign({}, upload), { blocks: options.blocks, channels: options.channels, channel_id: options.channel_id, initial_comment: options.initial_comment });
 	                if ('thread_ts' in options) {
 	                    uploadJobArgs.thread_ts = options.thread_ts;
 	                }
@@ -62784,7 +63550,7 @@ function requireFileUpload () {
 	                    const dataBuffer = (0, node_fs_1.readFileSync)(file);
 	                    return dataBuffer;
 	                }
-	                catch (error) {
+	                catch (_err) {
 	                    throw (0, errors_1.errorWithCode)(new Error(`Unable to resolve file data for ${file}. Please supply a filepath string, or binary data Buffer or String directly.`), errors_1.ErrorCode.FileUploadInvalidArgumentsError);
 	                }
 	            }
@@ -62830,8 +63596,8 @@ function requireFileUpload () {
 	}
 	/**
 	 * Filters through all fileUploads and groups them into jobs for completion
-	 * based on combination of channel_id, thread_ts, initial_comment.
-	 * {@link https://api.slack.com/methods/files.completeUploadExternal files.completeUploadExternal} allows for multiple
+	 * based on combination of channel_id, thread_ts, initial_comment, blocks.
+	 * {@link https://docs.slack.dev/reference/methods/files.completeUploadExternal files.completeUploadExternal} allows for multiple
 	 * files to be uploaded with a message (`initial_comment`), and as a threaded message (`thread_ts`)
 	 * In order to be grouped together, file uploads must have like properties.
 	 * @param fileUploads
@@ -62840,13 +63606,15 @@ function requireFileUpload () {
 	function getAllFileUploadsToComplete(fileUploads) {
 	    const toComplete = {};
 	    for (const upload of fileUploads) {
-	        const { channel_id, thread_ts, initial_comment, file_id, title } = upload;
+	        const { blocks, channel_id, thread_ts, initial_comment, file_id, title } = upload;
 	        if (file_id) {
-	            const compareString = `:::${channel_id}:::${thread_ts}:::${initial_comment}`;
+	            const compareString = `:::${channel_id}:::${thread_ts}:::${initial_comment}:::${JSON.stringify(blocks)}`;
+	            // biome-ignore lint/suspicious/noPrototypeBuiltins: TODO use hasOwn instead of hasOwnProperty
 	            if (!Object.prototype.hasOwnProperty.call(toComplete, compareString)) {
 	                toComplete[compareString] = {
 	                    files: [{ id: file_id, title }],
 	                    channel_id,
+	                    blocks,
 	                    initial_comment,
 	                };
 	                if (thread_ts && channel_id) {
@@ -62999,8 +63767,8 @@ function requireFileUpload () {
 	    return 'Sharing files with multiple channels is no longer supported in v2. Share files in each channel separately instead.';
 	}
 	function buildInvalidFilesUploadParamError() {
-	    return ('You may supply file_uploads only for a single channel, comment, thread respectively. ' +
-	        'Therefore, please supply any channel_id, initial_comment, thread_ts in the top-layer.');
+	    return ('You may supply file_uploads only for a single channel, message, or thread respectively. ' +
+	        'Therefore, please supply any channel_id, initial_comment or blocks, or thread_ts in the top-layer.');
 	}
 	
 	return fileUpload;
@@ -63027,242 +63795,6 @@ function requireHelpers () {
 	}
 	
 	return helpers;
-}
-
-var instrument = {};
-
-var name = "@slack/web-api";
-var version = "7.9.2";
-var require$$2 = {
-	name: name,
-	version: version};
-
-var hasRequiredInstrument;
-
-function requireInstrument () {
-	if (hasRequiredInstrument) return instrument;
-	hasRequiredInstrument = 1;
-	var __createBinding = (instrument && instrument.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-	    if (k2 === undefined) k2 = k;
-	    var desc = Object.getOwnPropertyDescriptor(m, k);
-	    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-	      desc = { enumerable: true, get: function() { return m[k]; } };
-	    }
-	    Object.defineProperty(o, k2, desc);
-	}) : (function(o, m, k, k2) {
-	    if (k2 === undefined) k2 = k;
-	    o[k2] = m[k];
-	}));
-	var __setModuleDefault = (instrument && instrument.__setModuleDefault) || (Object.create ? (function(o, v) {
-	    Object.defineProperty(o, "default", { enumerable: true, value: v });
-	}) : function(o, v) {
-	    o["default"] = v;
-	});
-	var __importStar = (instrument && instrument.__importStar) || (function () {
-	    var ownKeys = function(o) {
-	        ownKeys = Object.getOwnPropertyNames || function (o) {
-	            var ar = [];
-	            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-	            return ar;
-	        };
-	        return ownKeys(o);
-	    };
-	    return function (mod) {
-	        if (mod && mod.__esModule) return mod;
-	        var result = {};
-	        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-	        __setModuleDefault(result, mod);
-	        return result;
-	    };
-	})();
-	Object.defineProperty(instrument, "__esModule", { value: true });
-	instrument.addAppMetadata = addAppMetadata;
-	instrument.getUserAgent = getUserAgent;
-	const os = __importStar(require$$0$d);
-	const node_path_1 = require$$1$6;
-	const packageJson = require$$2;
-	/**
-	 * Replaces occurrences of '/' with ':' in a string, since '/' is meaningful inside User-Agent strings as a separator.
-	 */
-	function replaceSlashes(s) {
-	    return s.replace('/', ':');
-	}
-	// TODO: for the deno build (see the `npm run build:deno` npm run script), we could replace the `os-browserify` npm
-	// module shim with our own shim leveraging the deno beta compatibility layer for node's `os` module (for more info
-	// see https://deno.land/std@0.116.0/node/os.ts). At the time of writing this TODO (2021/11/25), this required deno
-	// v1.16.2 and use of the --unstable flag. Once support for this exists without the --unstable flag, we can improve
-	// the `os` module deno shim to correctly report operating system from a deno runtime. Until then, the below `os`-
-	// based code will report "browser/undefined" from a deno runtime.
-	const baseUserAgent = `${replaceSlashes(packageJson.name)}/${packageJson.version} ` +
-	    `${(0, node_path_1.basename)(process.title)}/${process.version.replace('v', '')} ` +
-	    `${os.platform()}/${os.release()}`;
-	const appMetadata = {};
-	/**
-	 * Appends the app metadata into the User-Agent value
-	 * @param appMetadata.name - name of tool to be counted in instrumentation
-	 * @param appMetadata.version - version of tool to be counted in instrumentation
-	 */
-	function addAppMetadata({ name, version }) {
-	    appMetadata[replaceSlashes(name)] = version;
-	}
-	/**
-	 * Returns the current User-Agent value for instrumentation
-	 */
-	function getUserAgent() {
-	    const appIdentifier = Object.entries(appMetadata)
-	        .map(([name, version]) => `${name}/${version}`)
-	        .join(' ');
-	    // only prepend the appIdentifier when its not empty
-	    return (appIdentifier.length > 0 ? `${appIdentifier} ` : '') + baseUserAgent;
-	}
-	
-	return instrument;
-}
-
-var logger = {};
-
-var dist$1 = {};
-
-var hasRequiredDist$2;
-
-function requireDist$2 () {
-	if (hasRequiredDist$2) return dist$1;
-	hasRequiredDist$2 = 1;
-	(function (exports) {
-		/* eslint-disable no-console */
-		Object.defineProperty(exports, "__esModule", { value: true });
-		exports.ConsoleLogger = exports.LogLevel = void 0;
-		/**
-		 * Severity levels for log entries
-		 */
-		var LogLevel;
-		(function (LogLevel) {
-		    LogLevel["ERROR"] = "error";
-		    LogLevel["WARN"] = "warn";
-		    LogLevel["INFO"] = "info";
-		    LogLevel["DEBUG"] = "debug";
-		})(LogLevel = exports.LogLevel || (exports.LogLevel = {}));
-		/**
-		 * Default logger which logs to stdout and stderr
-		 */
-		class ConsoleLogger {
-		    constructor() {
-		        this.level = LogLevel.INFO;
-		        this.name = '';
-		    }
-		    getLevel() {
-		        return this.level;
-		    }
-		    /**
-		     * Sets the instance's log level so that only messages which are equal or more severe are output to the console.
-		     */
-		    setLevel(level) {
-		        this.level = level;
-		    }
-		    /**
-		     * Set the instance's name, which will appear on each log line before the message.
-		     */
-		    setName(name) {
-		        this.name = name;
-		    }
-		    /**
-		     * Log a debug message
-		     */
-		    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-		    debug(...msg) {
-		        if (ConsoleLogger.isMoreOrEqualSevere(LogLevel.DEBUG, this.level)) {
-		            console.debug(ConsoleLogger.labels.get(LogLevel.DEBUG), this.name, ...msg);
-		        }
-		    }
-		    /**
-		     * Log an info message
-		     */
-		    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-		    info(...msg) {
-		        if (ConsoleLogger.isMoreOrEqualSevere(LogLevel.INFO, this.level)) {
-		            console.info(ConsoleLogger.labels.get(LogLevel.INFO), this.name, ...msg);
-		        }
-		    }
-		    /**
-		     * Log a warning message
-		     */
-		    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-		    warn(...msg) {
-		        if (ConsoleLogger.isMoreOrEqualSevere(LogLevel.WARN, this.level)) {
-		            console.warn(ConsoleLogger.labels.get(LogLevel.WARN), this.name, ...msg);
-		        }
-		    }
-		    /**
-		     * Log an error message
-		     */
-		    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-		    error(...msg) {
-		        if (ConsoleLogger.isMoreOrEqualSevere(LogLevel.ERROR, this.level)) {
-		            console.error(ConsoleLogger.labels.get(LogLevel.ERROR), this.name, ...msg);
-		        }
-		    }
-		    /**
-		     * Helper to compare two log levels and determine if a is equal or more severe than b
-		     */
-		    static isMoreOrEqualSevere(a, b) {
-		        return ConsoleLogger.severity[a] >= ConsoleLogger.severity[b];
-		    }
-		}
-		exports.ConsoleLogger = ConsoleLogger;
-		/** Map of labels for each log level */
-		ConsoleLogger.labels = (() => {
-		    const entries = Object.entries(LogLevel);
-		    const map = entries.map(([key, value]) => [value, `[${key}] `]);
-		    return new Map(map);
-		})();
-		/** Map of severity as comparable numbers for each log level */
-		ConsoleLogger.severity = {
-		    [LogLevel.ERROR]: 400,
-		    [LogLevel.WARN]: 300,
-		    [LogLevel.INFO]: 200,
-		    [LogLevel.DEBUG]: 100,
-		};
-		
-	} (dist$1));
-	return dist$1;
-}
-
-var hasRequiredLogger;
-
-function requireLogger () {
-	if (hasRequiredLogger) return logger;
-	hasRequiredLogger = 1;
-	(function (exports) {
-		Object.defineProperty(exports, "__esModule", { value: true });
-		exports.LogLevel = void 0;
-		exports.getLogger = getLogger;
-		const logger_1 = requireDist$2();
-		var logger_2 = requireDist$2();
-		Object.defineProperty(exports, "LogLevel", { enumerable: true, get: function () { return logger_2.LogLevel; } });
-		let instanceCount = 0;
-		/**
-		 * INTERNAL interface for getting or creating a named Logger.
-		 */
-		function getLogger(name, level, existingLogger) {
-		    // Get a unique ID for the logger.
-		    const instanceId = instanceCount;
-		    instanceCount += 1;
-		    // Set up the logger.
-		    const logger = (() => {
-		        if (existingLogger !== undefined) {
-		            return existingLogger;
-		        }
-		        return new logger_1.ConsoleLogger();
-		    })();
-		    logger.setName(`web-api:${name}:${instanceId}`);
-		    if (level !== undefined) {
-		        logger.setLevel(level);
-		    }
-		    return logger;
-		}
-		
-	} (logger));
-	return logger;
 }
 
 var methods = {};
@@ -63616,6 +64148,56 @@ function requireEventemitter3 () {
 
 var dist = {};
 
+var blockElements = {};
+
+var hasRequiredBlockElements;
+
+function requireBlockElements () {
+	if (hasRequiredBlockElements) return blockElements;
+	hasRequiredBlockElements = 1;
+	// This file contains objects documented here: https://docs.slack.dev/reference/block-kit/block-elements
+	Object.defineProperty(blockElements, "__esModule", { value: true });
+	
+	return blockElements;
+}
+
+var blocks = {};
+
+var hasRequiredBlocks;
+
+function requireBlocks () {
+	if (hasRequiredBlocks) return blocks;
+	hasRequiredBlocks = 1;
+	Object.defineProperty(blocks, "__esModule", { value: true });
+	
+	return blocks;
+}
+
+var compositionObjects = {};
+
+var hasRequiredCompositionObjects;
+
+function requireCompositionObjects () {
+	if (hasRequiredCompositionObjects) return compositionObjects;
+	hasRequiredCompositionObjects = 1;
+	// This file contains objects documented here: https://docs.slack.dev/reference/block-kit/composition-objects
+	Object.defineProperty(compositionObjects, "__esModule", { value: true });
+	
+	return compositionObjects;
+}
+
+var extensions = {};
+
+var hasRequiredExtensions;
+
+function requireExtensions () {
+	if (hasRequiredExtensions) return extensions;
+	hasRequiredExtensions = 1;
+	Object.defineProperty(extensions, "__esModule", { value: true });
+	
+	return extensions;
+}
+
 var calls = {};
 
 var hasRequiredCalls;
@@ -63624,8 +64206,8 @@ function requireCalls () {
 	if (hasRequiredCalls) return calls;
 	hasRequiredCalls = 1;
 	// These types represent users in Slack Calls, which is an API for showing 3rd party calls within the Slack client.
-	// More information on the API guide for Calls: https://api.slack.com/apis/calls
-	// and on User objects for use with Calls: https://api.slack.com/apis/calls#users
+	// More information on the API guide for Calls: https://docs.slack.dev/apis/web-api/using-the-calls-api
+	// and on User objects for use with Calls: https://docs.slack.dev/apis/web-api/using-the-calls-api
 	Object.defineProperty(calls, "__esModule", { value: true });
 	
 	return calls;
@@ -63898,6 +64480,18 @@ function requireStar () {
 	return star;
 }
 
+var stepsFromApps = {};
+
+var hasRequiredStepsFromApps;
+
+function requireStepsFromApps () {
+	if (hasRequiredStepsFromApps) return stepsFromApps;
+	hasRequiredStepsFromApps = 1;
+	Object.defineProperty(stepsFromApps, "__esModule", { value: true });
+	
+	return stepsFromApps;
+}
+
 var subteam = {};
 
 var hasRequiredSubteam;
@@ -63946,18 +64540,6 @@ function requireUser () {
 	return user;
 }
 
-var stepsFromApps = {};
-
-var hasRequiredStepsFromApps;
-
-function requireStepsFromApps () {
-	if (hasRequiredStepsFromApps) return stepsFromApps;
-	hasRequiredStepsFromApps = 1;
-	Object.defineProperty(stepsFromApps, "__esModule", { value: true });
-	
-	return stepsFromApps;
-}
-
 var hasRequiredEvents;
 
 function requireEvents () {
@@ -64000,26 +64582,14 @@ function requireEvents () {
 		__exportStar(requireReaction(), exports);
 		__exportStar(requireSharedChannel(), exports);
 		__exportStar(requireStar(), exports);
+		__exportStar(requireStepsFromApps(), exports);
 		__exportStar(requireSubteam(), exports);
 		__exportStar(requireTeam(), exports);
 		__exportStar(requireToken(), exports);
 		__exportStar(requireUser(), exports);
-		__exportStar(requireStepsFromApps(), exports);
 		
 	} (events));
 	return events;
-}
-
-var messageMetadata = {};
-
-var hasRequiredMessageMetadata;
-
-function requireMessageMetadata () {
-	if (hasRequiredMessageMetadata) return messageMetadata;
-	hasRequiredMessageMetadata = 1;
-	Object.defineProperty(messageMetadata, "__esModule", { value: true });
-	
-	return messageMetadata;
 }
 
 var messageAttachments = {};
@@ -64034,6 +64604,18 @@ function requireMessageAttachments () {
 	return messageAttachments;
 }
 
+var messageMetadata = {};
+
+var hasRequiredMessageMetadata;
+
+function requireMessageMetadata () {
+	if (hasRequiredMessageMetadata) return messageMetadata;
+	hasRequiredMessageMetadata = 1;
+	Object.defineProperty(messageMetadata, "__esModule", { value: true });
+	
+	return messageMetadata;
+}
+
 var views = {};
 
 var hasRequiredViews;
@@ -64044,56 +64626,6 @@ function requireViews () {
 	Object.defineProperty(views, "__esModule", { value: true });
 	
 	return views;
-}
-
-var blocks = {};
-
-var hasRequiredBlocks;
-
-function requireBlocks () {
-	if (hasRequiredBlocks) return blocks;
-	hasRequiredBlocks = 1;
-	Object.defineProperty(blocks, "__esModule", { value: true });
-	
-	return blocks;
-}
-
-var compositionObjects = {};
-
-var hasRequiredCompositionObjects;
-
-function requireCompositionObjects () {
-	if (hasRequiredCompositionObjects) return compositionObjects;
-	hasRequiredCompositionObjects = 1;
-	// This file contains objects documented here: https://api.slack.com/reference/block-kit/composition-objects
-	Object.defineProperty(compositionObjects, "__esModule", { value: true });
-	
-	return compositionObjects;
-}
-
-var blockElements = {};
-
-var hasRequiredBlockElements;
-
-function requireBlockElements () {
-	if (hasRequiredBlockElements) return blockElements;
-	hasRequiredBlockElements = 1;
-	// This file contains objects documented here: https://api.slack.com/reference/block-kit/block-elements
-	Object.defineProperty(blockElements, "__esModule", { value: true });
-	
-	return blockElements;
-}
-
-var extensions = {};
-
-var hasRequiredExtensions;
-
-function requireExtensions () {
-	if (hasRequiredExtensions) return extensions;
-	hasRequiredExtensions = 1;
-	Object.defineProperty(extensions, "__esModule", { value: true });
-	
-	return extensions;
 }
 
 var hasRequiredDist$1;
@@ -64117,16 +64649,16 @@ function requireDist$1 () {
 		    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 		};
 		Object.defineProperty(exports, "__esModule", { value: true });
+		__exportStar(requireBlockElements(), exports);
+		__exportStar(requireBlocks(), exports);
+		__exportStar(requireCompositionObjects(), exports);
+		__exportStar(requireExtensions(), exports);
 		__exportStar(requireCalls(), exports);
 		__exportStar(requireDialog(), exports);
 		__exportStar(requireEvents(), exports);
-		__exportStar(requireMessageMetadata(), exports);
 		__exportStar(requireMessageAttachments(), exports);
+		__exportStar(requireMessageMetadata(), exports);
 		__exportStar(requireViews(), exports);
-		__exportStar(requireBlocks(), exports);
-		__exportStar(requireCompositionObjects(), exports);
-		__exportStar(requireBlockElements(), exports);
-		__exportStar(requireExtensions(), exports);
 		
 	} (dist));
 	return dist;
@@ -64184,7 +64716,7 @@ function requireMethods () {
 		            analytics: {
 		                /**
 		                 * @description Retrieve analytics data for a given date, presented as a compressed JSON file.
-		                 * @see {@link https://api.slack.com/methods/api.test `api.test` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/api.test `api.test` API reference}.
 		                 */
 		                getFile: bindApiCall(this, 'admin.analytics.getFile'),
 		            },
@@ -64192,66 +64724,66 @@ function requireMethods () {
 		                activities: {
 		                    /**
 		                     * @description Get logs for a specified team/org.
-		                     * @see {@link https://api.slack.com/methods/admin.apps.activities.list `admin.apps.activities.list` API reference}.
+		                     * @see {@link https://docs.slack.dev/reference/methods/admin.apps.activities.list `admin.apps.activities.list` API reference}.
 		                     */
 		                    list: bindApiCallWithOptionalArgument(this, 'admin.apps.activities.list'),
 		                },
 		                /**
 		                 * @description Approve an app for installation on a workspace.
-		                 * @see {@link https://api.slack.com/methods/admin.apps.approve `admin.apps.approve` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.apps.approve `admin.apps.approve` API reference}.
 		                 */
 		                approve: bindApiCall(this, 'admin.apps.approve'),
 		                approved: {
 		                    /**
 		                     * @description List approved apps for an org or workspace.
-		                     * @see {@link https://api.slack.com/methods/admin.apps.approved.list `admin.apps.approved.list` API reference}.
+		                     * @see {@link https://docs.slack.dev/reference/methods/admin.apps.approved.list `admin.apps.approved.list` API reference}.
 		                     */
 		                    list: bindApiCall(this, 'admin.apps.approved.list'),
 		                },
 		                /**
 		                 * @description Clear an app resolution.
-		                 * @see {@link https://api.slack.com/methods/admin.apps.clearResolution `admin.apps.clearResolution` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.apps.clearResolution `admin.apps.clearResolution` API reference}.
 		                 */
 		                clearResolution: bindApiCall(this, 'admin.apps.clearResolution'),
 		                config: {
 		                    /**
 		                     * @description Look up the app config for connectors by their IDs.
-		                     * @see {@link https://api.slack.com/methods/admin.apps.config.lookup `admin.apps.config.lookup` API reference}.
+		                     * @see {@link https://docs.slack.dev/reference/methods/admin.apps.config.lookup `admin.apps.config.lookup` API reference}.
 		                     */
 		                    lookup: bindApiCall(this, 'admin.apps.config.lookup'),
 		                    /**
 		                     * @description Set the app config for a connector.
-		                     * @see {@link https://api.slack.com/methods/admin.apps.config.set `admin.apps.config.set` API reference}.
+		                     * @see {@link https://docs.slack.dev/reference/methods/admin.apps.config.set `admin.apps.config.set` API reference}.
 		                     */
 		                    set: bindApiCall(this, 'admin.apps.config.set'),
 		                },
 		                requests: {
 		                    /**
 		                     * @description Cancel app request for team.
-		                     * @see {@link https://api.slack.com/methods/admin.apps.requests.cancel `admin.apps.requests.cancel` API reference}.
+		                     * @see {@link https://docs.slack.dev/reference/methods/admin.apps.requests.cancel `admin.apps.requests.cancel` API reference}.
 		                     */
 		                    cancel: bindApiCall(this, 'admin.apps.requests.cancel'),
 		                    /**
 		                     * @description List app requests for a team/workspace.
-		                     * @see {@link https://api.slack.com/methods/admin.apps.requests.list `admin.apps.requests.list` API reference}.
+		                     * @see {@link https://docs.slack.dev/reference/methods/admin.apps.requests.list `admin.apps.requests.list` API reference}.
 		                     */
 		                    list: bindApiCall(this, 'admin.apps.requests.list'),
 		                },
 		                /**
 		                 * @description Restrict an app for installation on a workspace.
-		                 * @see {@link https://api.slack.com/methods/admin.apps.restrict `admin.apps.restrict` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.apps.restrict `admin.apps.restrict` API reference}.
 		                 */
 		                restrict: bindApiCall(this, 'admin.apps.restrict'),
 		                restricted: {
 		                    /**
 		                     * @description List restricted apps for an org or workspace.
-		                     * @see {@link https://api.slack.com/methods/admin.apps.restricted.list `admin.apps.restricted.list` API reference}.
+		                     * @see {@link https://docs.slack.dev/reference/methods/admin.apps.restricted.list `admin.apps.restricted.list` API reference}.
 		                     */
 		                    list: bindApiCall(this, 'admin.apps.restricted.list'),
 		                },
 		                /**
 		                 * @description Uninstall an app from one or many workspaces, or an entire enterprise organization.
-		                 * @see {@link https://api.slack.com/methods/admin.apps.uninstall `admin.apps.uninstall` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.apps.uninstall `admin.apps.uninstall` API reference}.
 		                 */
 		                uninstall: bindApiCall(this, 'admin.apps.uninstall'),
 		            },
@@ -64259,17 +64791,17 @@ function requireMethods () {
 		                policy: {
 		                    /**
 		                     * @description Assign entities to a particular authentication policy.
-		                     * @see {@link https://api.slack.com/methods/admin.auth.policy.assignEntities `admin.auth.policy.assignEntities` API reference}.
+		                     * @see {@link https://docs.slack.dev/reference/methods/admin.auth.policy.assignEntities `admin.auth.policy.assignEntities` API reference}.
 		                     */
 		                    assignEntities: bindApiCall(this, 'admin.auth.policy.assignEntities'),
 		                    /**
 		                     * @description Fetch all the entities assigned to a particular authentication policy by name.
-		                     * @see {@link https://api.slack.com/methods/admin.auth.policy.getEntities `admin.auth.policy.getEntities` API reference}.
+		                     * @see {@link https://docs.slack.dev/reference/methods/admin.auth.policy.getEntities `admin.auth.policy.getEntities` API reference}.
 		                     */
 		                    getEntities: bindApiCall(this, 'admin.auth.policy.getEntities'),
 		                    /**
 		                     * @description Remove specified entities from a specified authentication policy.
-		                     * @see {@link https://api.slack.com/methods/admin.auth.policy.removeEntities `admin.auth.policy.removeEntities` API reference}.
+		                     * @see {@link https://docs.slack.dev/reference/methods/admin.auth.policy.removeEntities `admin.auth.policy.removeEntities` API reference}.
 		                     */
 		                    removeEntities: bindApiCall(this, 'admin.auth.policy.removeEntities'),
 		                },
@@ -64277,202 +64809,202 @@ function requireMethods () {
 		            barriers: {
 		                /**
 		                 * @description Create an Information Barrier.
-		                 * @see {@link https://api.slack.com/methods/admin.barriers.create `admin.barriers.create` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.barriers.create `admin.barriers.create` API reference}.
 		                 */
 		                create: bindApiCall(this, 'admin.barriers.create'),
 		                /**
 		                 * @description Delete an existing Information Barrier.
-		                 * @see {@link https://api.slack.com/methods/admin.barriers.delete `admin.barriers.delete` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.barriers.delete `admin.barriers.delete` API reference}.
 		                 */
 		                delete: bindApiCall(this, 'admin.barriers.delete'),
 		                /**
 		                 * @description Get all Information Barriers for your organization.
-		                 * @see {@link https://api.slack.com/methods/admin.barriers.list `admin.barriers.list` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.barriers.list `admin.barriers.list` API reference}.
 		                 */
 		                list: bindApiCallWithOptionalArgument(this, 'admin.barriers.list'),
 		                /**
 		                 * @description Update an existing Information Barrier.
-		                 * @see {@link https://api.slack.com/methods/admin.barriers.update `admin.barriers.update` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.barriers.update `admin.barriers.update` API reference}.
 		                 */
 		                update: bindApiCall(this, 'admin.barriers.update'),
 		            },
 		            conversations: {
 		                /**
 		                 * @description Archive a public or private channel.
-		                 * @see {@link https://api.slack.com/methods/admin.conversations.archive `admin.conversations.archive` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.conversations.archive `admin.conversations.archive` API reference}.
 		                 */
 		                archive: bindApiCall(this, 'admin.conversations.archive'),
 		                /**
 		                 * @description Archive public or private channels in bulk.
-		                 * @see {@link https://api.slack.com/methods/admin.conversations.bulkArchive `admin.conversations.bulkArchive` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.conversations.bulkArchive `admin.conversations.bulkArchive` API reference}.
 		                 */
 		                bulkArchive: bindApiCall(this, 'admin.conversations.bulkArchive'),
 		                /**
 		                 * @description Delete public or private channels in bulk.
-		                 * @see {@link https://api.slack.com/methods/admin.conversations.bulkDelet `admin.conversations.bulkDelete` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.conversations.bulkDelete `admin.conversations.bulkDelete` API reference}.
 		                 */
 		                bulkDelete: bindApiCall(this, 'admin.conversations.bulkDelete'),
 		                /**
 		                 * @description Move public or private channels in bulk.
-		                 * @see {@link https://api.slack.com/methods/admin.conversations.bulkMove `admin.conversations.bulkMove` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.conversations.bulkMove `admin.conversations.bulkMove` API reference}.
 		                 */
 		                bulkMove: bindApiCall(this, 'admin.conversations.bulkMove'),
 		                /**
 		                 * @description Convert a public channel to a private channel.
-		                 * @see {@link https://api.slack.com/methods/admin.conversations.convertToPrivate `admin.conversations.convertToPrivate` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.conversations.convertToPrivate `admin.conversations.convertToPrivate` API reference}.
 		                 */
 		                convertToPrivate: bindApiCall(this, 'admin.conversations.convertToPrivate'),
 		                /**
 		                 * @description Convert a private channel to a public channel.
-		                 * @see {@link https://api.slack.com/methods/admin.conversations.convertToPublic `admin.conversations.convertToPublic` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.conversations.convertToPublic `admin.conversations.convertToPublic` API reference}.
 		                 */
 		                convertToPublic: bindApiCall(this, 'admin.conversations.convertToPublic'),
 		                /**
 		                 * @description Create a public or private channel-based conversation.
-		                 * @see {@link https://api.slack.com/methods/admin.conversations.create `admin.conversations.create` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.conversations.create `admin.conversations.create` API reference}.
 		                 */
 		                create: bindApiCall(this, 'admin.conversations.create'),
 		                /**
 		                 * @description Delete a public or private channel.
-		                 * @see {@link https://api.slack.com/methods/admin.conversations.delete `admin.conversations.delete` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.conversations.delete `admin.conversations.delete` API reference}.
 		                 */
 		                delete: bindApiCall(this, 'admin.conversations.delete'),
 		                /**
 		                 * @description Disconnect a connected channel from one or more workspaces.
-		                 * @see {@link https://api.slack.com/methods/admin.conversations.disconnectShared `admin.conversations.disconnectShared` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.conversations.disconnectShared `admin.conversations.disconnectShared` API reference}.
 		                 */
 		                disconnectShared: bindApiCall(this, 'admin.conversations.disconnectShared'),
 		                ekm: {
 		                    /**
 		                     * @description List all disconnected channels — i.e., channels that were once connected to other workspaces
 		                     * and then disconnected — and the corresponding original channel IDs for key revocation with EKM.
-		                     * @see {@link https://api.slack.com/methods/admin.conversations.ekm.listOriginalConnectedChannelInfo `admin.conversations.ekm.listOriginalConnectedChannelInfo` API reference}.
+		                     * @see {@link https://docs.slack.dev/reference/methods/admin.conversations.ekm.listOriginalConnectedChannelInfo `admin.conversations.ekm.listOriginalConnectedChannelInfo` API reference}.
 		                     */
 		                    listOriginalConnectedChannelInfo: bindApiCallWithOptionalArgument(this, 'admin.conversations.ekm.listOriginalConnectedChannelInfo'),
 		                },
 		                /**
 		                 * @description Get conversation preferences for a public or private channel.
-		                 * @see {@link https://api.slack.com/methods/admin.conversations.getConversationPrefs `admin.conversations.getConversationPrefs` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.conversations.getConversationPrefs `admin.conversations.getConversationPrefs` API reference}.
 		                 */
 		                getConversationPrefs: bindApiCall(this, 'admin.conversations.getConversationPrefs'),
 		                /**
 		                 * @description Get a conversation's retention policy.
-		                 * @see {@link https://api.slack.com/methods/admin.conversations.getCustomRetention `admin.conversations.getCustomRetention` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.conversations.getCustomRetention `admin.conversations.getCustomRetention` API reference}.
 		                 */
 		                getCustomRetention: bindApiCall(this, 'admin.conversations.getCustomRetention'),
 		                /**
 		                 * @description Get all the workspaces a given public or private channel is connected to within
 		                 * this Enterprise org.
-		                 * @see {@link https://api.slack.com/methods/admin.conversations.getTeams `admin.conversations.getTeams` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.conversations.getTeams `admin.conversations.getTeams` API reference}.
 		                 */
 		                getTeams: bindApiCall(this, 'admin.conversations.getTeams'),
 		                /**
 		                 * @description Invite a user to a public or private channel.
-		                 * @see {@link https://api.slack.com/methods/admin.conversations.invite `admin.conversations.invite` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.conversations.invite `admin.conversations.invite` API reference}.
 		                 */
 		                invite: bindApiCall(this, 'admin.conversations.invite'),
 		                /**
 		                 * @description Returns channels on the given team using the filters.
-		                 * @see {@link https://api.slack.com/methods/admin.conversations.lookup `admin.conversations.lookup` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.conversations.lookup `admin.conversations.lookup` API reference}.
 		                 */
 		                lookup: bindApiCall(this, 'admin.conversations.lookup'),
 		                /**
 		                 * @description Remove a conversation's retention policy.
-		                 * @see {@link https://api.slack.com/methods/admin.conversations.removeCustomRetention `admin.conversations.removeCustomRetention` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.conversations.removeCustomRetention `admin.conversations.removeCustomRetention` API reference}.
 		                 */
 		                removeCustomRetention: bindApiCall(this, 'admin.conversations.removeCustomRetention'),
 		                /**
 		                 * @description Rename a public or private channel.
-		                 * @see {@link https://api.slack.com/methods/admin.conversations.rename `admin.conversations.rename` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.conversations.rename `admin.conversations.rename` API reference}.
 		                 */
 		                rename: bindApiCall(this, 'admin.conversations.rename'),
 		                restrictAccess: {
 		                    /**
 		                     * @description Add an allowlist of IDP groups for accessing a channel.
-		                     * @see {@link https://api.slack.com/methods/admin.conversations.restrictAccess.addGroup `admin.conversations.restrictAccess.addGroup` API reference}.
+		                     * @see {@link https://docs.slack.dev/reference/methods/admin.conversations.restrictAccess.addGroup `admin.conversations.restrictAccess.addGroup` API reference}.
 		                     */
 		                    addGroup: bindApiCall(this, 'admin.conversations.restrictAccess.addGroup'),
 		                    /**
 		                     * @description List all IDP Groups linked to a channel.
-		                     * @see {@link https://api.slack.com/methods/admin.conversations.restrictAccess.listGroups `admin.conversations.restrictAccess.listGroups` API reference}.
+		                     * @see {@link https://docs.slack.dev/reference/methods/admin.conversations.restrictAccess.listGroups `admin.conversations.restrictAccess.listGroups` API reference}.
 		                     */
 		                    listGroups: bindApiCall(this, 'admin.conversations.restrictAccess.listGroups'),
 		                    /**
 		                     * @description Remove a linked IDP group linked from a private channel.
-		                     * @see {@link https://api.slack.com/methods/admin.conversations.restrictAccess.removeGroup `admin.conversations.restrictAccess.removeGroup` API reference}.
+		                     * @see {@link https://docs.slack.dev/reference/methods/admin.conversations.restrictAccess.removeGroup `admin.conversations.restrictAccess.removeGroup` API reference}.
 		                     */
 		                    removeGroup: bindApiCall(this, 'admin.conversations.restrictAccess.removeGroup'),
 		                },
 		                /**
 		                 * @description Search for public or private channels in an Enterprise organization.
-		                 * @see {@link https://api.slack.com/methods/admin.conversations.search `admin.conversations.search` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.conversations.search `admin.conversations.search` API reference}.
 		                 */
 		                search: bindApiCallWithOptionalArgument(this, 'admin.conversations.search'),
 		                /**
 		                 * @description Set the posting permissions for a public or private channel.
-		                 * @see {@link https://api.slack.com/methods/admin.conversations.setConversationPrefs `admin.conversations.setConversationPrefs` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.conversations.setConversationPrefs `admin.conversations.setConversationPrefs` API reference}.
 		                 */
 		                setConversationPrefs: bindApiCall(this, 'admin.conversations.setConversationPrefs'),
 		                /**
 		                 * @description Set a conversation's retention policy.
-		                 * @see {@link https://api.slack.com/methods/admin.conversations.setCustomRetention `admin.conversations.setCustomRetention` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.conversations.setCustomRetention `admin.conversations.setCustomRetention` API reference}.
 		                 */
 		                setCustomRetention: bindApiCall(this, 'admin.conversations.setCustomRetention'),
 		                /**
 		                 * @description Set the workspaces in an Enterprise grid org that connect to a public or private channel.
-		                 * @see {@link https://api.slack.com/methods/admin.conversations.setTeams `admin.conversations.setTeams` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.conversations.setTeams `admin.conversations.setTeams` API reference}.
 		                 */
 		                setTeams: bindApiCall(this, 'admin.conversations.setTeams'),
 		                /**
 		                 * @description Unarchive a public or private channel.
-		                 * @see {@link https://api.slack.com/methods/admin.conversations.unarchive `admin.conversations.unarchive` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.conversations.unarchive `admin.conversations.unarchive` API reference}.
 		                 */
 		                unarchive: bindApiCall(this, 'admin.conversations.unarchive'),
 		            },
 		            emoji: {
 		                /**
 		                 * @description Add an emoji.
-		                 * @see {@link https://api.slack.com/methods/admin.emoji.add `admin.emoji.add` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.emoji.add `admin.emoji.add` API reference}.
 		                 */
 		                add: bindApiCall(this, 'admin.emoji.add'),
 		                /**
 		                 * @description Add an emoji alias.
-		                 * @see {@link https://api.slack.com/methods/admin.emoji.addAlias `admin.emoji.addAlias` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.emoji.addAlias `admin.emoji.addAlias` API reference}.
 		                 */
 		                addAlias: bindApiCall(this, 'admin.emoji.addAlias'),
 		                /**
 		                 * @description List emoji for an Enterprise Grid organization.
-		                 * @see {@link https://api.slack.com/methods/admin.emoji.list `admin.emoji.list` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.emoji.list `admin.emoji.list` API reference}.
 		                 */
 		                list: bindApiCallWithOptionalArgument(this, 'admin.emoji.list'),
 		                /**
 		                 * @description Remove an emoji across an Enterprise Grid organization.
-		                 * @see {@link https://api.slack.com/methods/admin.emoji.remove `admin.emoji.remove` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.emoji.remove `admin.emoji.remove` API reference}.
 		                 */
 		                remove: bindApiCall(this, 'admin.emoji.remove'),
 		                /**
 		                 * @description Rename an emoji.
-		                 * @see {@link https://api.slack.com/methods/admin.emoji.rename `admin.emoji.rename` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.emoji.rename `admin.emoji.rename` API reference}.
 		                 */
 		                rename: bindApiCall(this, 'admin.emoji.rename'),
 		            },
 		            functions: {
 		                /**
 		                 * @description Look up functions by a set of apps.
-		                 * @see {@link https://api.slack.com/methods/admin.functions.list `admin.functions.list` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.functions.list `admin.functions.list` API reference}.
 		                 */
 		                list: bindApiCall(this, 'admin.functions.list'),
 		                permissions: {
 		                    /**
 		                     * @description Lookup the visibility of multiple Slack functions and include the users if
 		                     * it is limited to particular named entities.
-		                     * @see {@link https://api.slack.com/methods/admin.functions.permissions.lookup `admin.functions.permissions.lookup` API reference}.
+		                     * @see {@link https://docs.slack.dev/reference/methods/admin.functions.permissions.lookup `admin.functions.permissions.lookup` API reference}.
 		                     */
 		                    lookup: bindApiCall(this, 'admin.functions.permissions.lookup'),
 		                    /**
 		                     * @description Set the visibility of a Slack function and define the users or workspaces if
 		                     * it is set to named_entities.
-		                     * @see {@link https://api.slack.com/methods/admin.functions.permissions.set `admin.functions.permissions.set` API reference}.
+		                     * @see {@link https://docs.slack.dev/reference/methods/admin.functions.permissions.set `admin.functions.permissions.set` API reference}.
 		                     */
 		                    set: bindApiCall(this, 'admin.functions.permissions.set'),
 		                },
@@ -64480,49 +65012,49 @@ function requireMethods () {
 		            inviteRequests: {
 		                /**
 		                 * @description Approve a workspace invite request.
-		                 * @see {@link https://api.slack.com/methods/admin.inviteRequests.approve `admin.inviteRequests.approve` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.inviteRequests.approve `admin.inviteRequests.approve` API reference}.
 		                 */
 		                approve: bindApiCall(this, 'admin.inviteRequests.approve'),
 		                approved: {
 		                    /**
 		                     * @description List all approved workspace invite requests.
-		                     * @see {@link https://api.slack.com/methods/admin.inviteRequests.approved.list `admin.inviteRequests.approved.list` API reference}.
+		                     * @see {@link https://docs.slack.dev/reference/methods/admin.inviteRequests.approved.list `admin.inviteRequests.approved.list` API reference}.
 		                     */
 		                    list: bindApiCall(this, 'admin.inviteRequests.approved.list'),
 		                },
 		                denied: {
 		                    /**
 		                     * @description List all denied workspace invite requests.
-		                     * @see {@link https://api.slack.com/methods/admin.inviteRequests.denied.list `admin.inviteRequests.denied.list` API reference}.
+		                     * @see {@link https://docs.slack.dev/reference/methods/admin.inviteRequests.denied.list `admin.inviteRequests.denied.list` API reference}.
 		                     */
 		                    list: bindApiCall(this, 'admin.inviteRequests.denied.list'),
 		                },
 		                /**
 		                 * @description Deny a workspace invite request.
-		                 * @see {@link https://api.slack.com/methods/admin.inviteRequests.deny `admin.inviteRequests.deny` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.inviteRequests.deny `admin.inviteRequests.deny` API reference}.
 		                 */
 		                deny: bindApiCall(this, 'admin.inviteRequests.deny'),
 		                /**
 		                 * @description List all pending workspace invite requests.
-		                 * @see {@link https://api.slack.com/methods/admin.inviteRequests.list `admin.inviteRequests.list` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.inviteRequests.list `admin.inviteRequests.list` API reference}.
 		                 */
 		                list: bindApiCall(this, 'admin.inviteRequests.list'),
 		            },
 		            roles: {
 		                /**
 		                 * @description Adds members to the specified role with the specified scopes.
-		                 * @see {@link https://api.slack.com/methods/admin.roles.addAssignments `admin.roles.addAssignments` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.roles.addAssignments `admin.roles.addAssignments` API reference}.
 		                 */
 		                addAssignments: bindApiCall(this, 'admin.roles.addAssignments'),
 		                /**
 		                 * @description Lists assignments for all roles across entities.
 		                 * Options to scope results by any combination of roles or entities.
-		                 * @see {@link https://api.slack.com/methods/admin.roles.listAssignments `admin.roles.listAssignments` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.roles.listAssignments `admin.roles.listAssignments` API reference}.
 		                 */
 		                listAssignments: bindApiCallWithOptionalArgument(this, 'admin.roles.listAssignments'),
 		                /**
 		                 * @description Removes a set of users from a role for the given scopes and entities.
-		                 * @see {@link https://api.slack.com/methods/admin.roles.removeAssignments `admin.roles.removeAssignments` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.roles.removeAssignments `admin.roles.removeAssignments` API reference}.
 		                 */
 		                removeAssignments: bindApiCall(this, 'admin.roles.removeAssignments'),
 		            },
@@ -64530,56 +65062,56 @@ function requireMethods () {
 		                admins: {
 		                    /**
 		                     * @description List all of the admins on a given workspace.
-		                     * @see {@link https://api.slack.com/methods/admin.teams.admins.list `admin.teams.admins.list` API reference}.
+		                     * @see {@link https://docs.slack.dev/reference/methods/admin.teams.admins.list `admin.teams.admins.list` API reference}.
 		                     */
 		                    list: bindApiCall(this, 'admin.teams.admins.list'),
 		                },
 		                /**
 		                 * @description Create an Enterprise team.
-		                 * @see {@link https://api.slack.com/methods/admin.teams.create `admin.teams.create` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.teams.create `admin.teams.create` API reference}.
 		                 */
 		                create: bindApiCall(this, 'admin.teams.create'),
 		                /**
 		                 * @description List all teams on an Enterprise organization.
-		                 * @see {@link https://api.slack.com/methods/admin.teams.list `admin.teams.list` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.teams.list `admin.teams.list` API reference}.
 		                 */
 		                list: bindApiCallWithOptionalArgument(this, 'admin.teams.list'),
 		                owners: {
 		                    /**
 		                     * @description List all of the owners on a given workspace.
-		                     * @see {@link https://api.slack.com/methods/admin.teams.owners.list `admin.teams.owners.list` API reference}.
+		                     * @see {@link https://docs.slack.dev/reference/methods/admin.teams.owners.list `admin.teams.owners.list` API reference}.
 		                     */
 		                    list: bindApiCall(this, 'admin.teams.owners.list'),
 		                },
 		                settings: {
 		                    /**
 		                     * @description Fetch information about settings in a workspace.
-		                     * @see {@link https://api.slack.com/methods/admin.teams.owners.list `admin.teams.owners.list` API reference}.
+		                     * @see {@link https://docs.slack.dev/reference/methods/admin.teams.settings.info `admin.teams.settings.info` API reference}.
 		                     */
 		                    info: bindApiCall(this, 'admin.teams.settings.info'),
 		                    /**
 		                     * @description Set the default channels of a workspace.
-		                     * @see {@link https://api.slack.com/methods/admin.teams.settings.setDefaultChannels `admin.teams.settings.setDefaultChannels` API reference}.
+		                     * @see {@link https://docs.slack.dev/reference/methods/admin.teams.settings.setDefaultChannels `admin.teams.settings.setDefaultChannels` API reference}.
 		                     */
 		                    setDefaultChannels: bindApiCall(this, 'admin.teams.settings.setDefaultChannels'),
 		                    /**
 		                     * @description Set the description of a given workspace.
-		                     * @see {@link https://api.slack.com/methods/admin.teams.settings.setDescription `admin.teams.settings.setDescription` API reference}.
+		                     * @see {@link https://docs.slack.dev/reference/methods/admin.teams.settings.setDescription `admin.teams.settings.setDescription` API reference}.
 		                     */
 		                    setDescription: bindApiCall(this, 'admin.teams.settings.setDescription'),
 		                    /**
 		                     * @description Set the discoverability of a given workspace.
-		                     * @see {@link https://api.slack.com/methods/admin.teams.settings.setDiscoverability `admin.teams.settings.setDiscoverability` API reference}.
+		                     * @see {@link https://docs.slack.dev/reference/methods/admin.teams.settings.setDiscoverability `admin.teams.settings.setDiscoverability` API reference}.
 		                     */
 		                    setDiscoverability: bindApiCall(this, 'admin.teams.settings.setDiscoverability'),
 		                    /**
 		                     * @description Sets the icon of a workspace.
-		                     * @see {@link https://api.slack.com/methods/admin.teams.settings.setIcon `admin.teams.settings.setIcon` API reference}.
+		                     * @see {@link https://docs.slack.dev/reference/methods/admin.teams.settings.setIcon `admin.teams.settings.setIcon` API reference}.
 		                     */
 		                    setIcon: bindApiCall(this, 'admin.teams.settings.setIcon'),
 		                    /**
 		                     * @description Set the name of a given workspace.
-		                     * @see {@link https://api.slack.com/methods/admin.teams.settings.setName `admin.teams.settings.setName` API reference}.
+		                     * @see {@link https://docs.slack.dev/reference/methods/admin.teams.settings.setName `admin.teams.settings.setName` API reference}.
 		                     */
 		                    setName: bindApiCall(this, 'admin.teams.settings.setName'),
 		                },
@@ -64587,111 +65119,111 @@ function requireMethods () {
 		            usergroups: {
 		                /**
 		                 * @description Add up to one hundred default channels to an IDP group.
-		                 * @see {@link https://api.slack.com/methods/admin.usergroups.addChannels `admin.teams.usergroups.addChannels` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.usergroups.addChannels `admin.teams.usergroups.addChannels` API reference}.
 		                 */
 		                addChannels: bindApiCall(this, 'admin.usergroups.addChannels'),
 		                /**
 		                 * @description Associate one or more default workspaces with an organization-wide IDP group.
-		                 * @see {@link https://api.slack.com/methods/admin.usergroups.addTeams `admin.teams.usergroups.addTeams` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.usergroups.addTeams `admin.teams.usergroups.addTeams` API reference}.
 		                 */
 		                addTeams: bindApiCall(this, 'admin.usergroups.addTeams'),
 		                /**
 		                 * @description List the channels linked to an org-level IDP group (user group).
-		                 * @see {@link https://api.slack.com/methods/admin.usergroups.listChannels `admin.teams.usergroups.listChannels` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.usergroups.listChannels `admin.teams.usergroups.listChannels` API reference}.
 		                 */
 		                listChannels: bindApiCall(this, 'admin.usergroups.listChannels'),
 		                /**
 		                 * @description Remove one or more default channels from an org-level IDP group (user group).
-		                 * @see {@link https://api.slack.com/methods/admin.usergroups.removeChannels `admin.teams.usergroups.removeChannels` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.usergroups.removeChannels `admin.teams.usergroups.removeChannels` API reference}.
 		                 */
 		                removeChannels: bindApiCall(this, 'admin.usergroups.removeChannels'),
 		            },
 		            users: {
 		                /**
 		                 * @description Add an Enterprise user to a workspace.
-		                 * @see {@link https://api.slack.com/methods/admin.users.assign `admin.users.assign` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.users.assign `admin.users.assign` API reference}.
 		                 */
 		                assign: bindApiCall(this, 'admin.users.assign'),
 		                /**
 		                 * @description Invite a user to a workspace.
-		                 * @see {@link https://api.slack.com/methods/admin.users.invite `admin.users.invite` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.users.invite `admin.users.invite` API reference}.
 		                 */
 		                invite: bindApiCall(this, 'admin.users.invite'),
 		                /**
 		                 * @description List users on a workspace.
-		                 * @see {@link https://api.slack.com/methods/admin.users.list `admin.users.list` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.users.list `admin.users.list` API reference}.
 		                 */
 		                list: bindApiCallWithOptionalArgument(this, 'admin.users.list'),
 		                /**
 		                 * @description Remove a user from a workspace.
-		                 * @see {@link https://api.slack.com/methods/admin.users.remove `admin.users.remove` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.users.remove `admin.users.remove` API reference}.
 		                 */
 		                remove: bindApiCall(this, 'admin.users.remove'),
 		                session: {
 		                    /**
 		                     * @description Clear user-specific session settings—the session duration and what happens when the client
 		                     * closes—for a list of users.
-		                     * @see {@link https://api.slack.com/methods/admin.users.session.clearSettings `admin.users.session.clearSettings` API reference}.
+		                     * @see {@link https://docs.slack.dev/reference/methods/admin.users.session.clearSettings `admin.users.session.clearSettings` API reference}.
 		                     */
 		                    clearSettings: bindApiCall(this, 'admin.users.session.clearSettings'),
 		                    /**
 		                     * @description Get user-specific session settings—the session duration and what happens when the client
 		                     * closes—given a list of users.
-		                     * @see {@link https://api.slack.com/methods/admin.users.session.getSettings `admin.users.session.getSettings` API reference}.
+		                     * @see {@link https://docs.slack.dev/reference/methods/admin.users.session.getSettings `admin.users.session.getSettings` API reference}.
 		                     */
 		                    getSettings: bindApiCall(this, 'admin.users.session.getSettings'),
 		                    /**
 		                     * @description Revoke a single session for a user. The user will be forced to login to Slack.
-		                     * @see {@link https://api.slack.com/methods/admin.users.session.invalidate `admin.users.session.invalidate` API reference}.
+		                     * @see {@link https://docs.slack.dev/reference/methods/admin.users.session.invalidate `admin.users.session.invalidate` API reference}.
 		                     */
 		                    invalidate: bindApiCall(this, 'admin.users.session.invalidate'),
 		                    /**
 		                     * @description List active user sessions for an organization.
-		                     * @see {@link https://api.slack.com/methods/admin.users.session.list `admin.users.session.list` API reference}.
+		                     * @see {@link https://docs.slack.dev/reference/methods/admin.users.session.list `admin.users.session.list` API reference}.
 		                     */
 		                    list: bindApiCallWithOptionalArgument(this, 'admin.users.session.list'),
 		                    /**
 		                     * @description Wipes all valid sessions on all devices for a given user.
-		                     * @see {@link https://api.slack.com/methods/admin.users.session.reset `admin.users.session.reset` API reference}.
+		                     * @see {@link https://docs.slack.dev/reference/methods/admin.users.session.reset `admin.users.session.reset` API reference}.
 		                     */
 		                    reset: bindApiCall(this, 'admin.users.session.reset'),
 		                    /**
 		                     * @description Enqueues an asynchronous job to wipe all valid sessions on all devices for a given user list.
-		                     * @see {@link https://api.slack.com/methods/admin.users.session.resetBulk `admin.users.session.resetBulk` API reference}.
+		                     * @see {@link https://docs.slack.dev/reference/methods/admin.users.session.resetBulk `admin.users.session.resetBulk` API reference}.
 		                     */
 		                    resetBulk: bindApiCall(this, 'admin.users.session.resetBulk'),
 		                    /**
 		                     * @description Configure the user-level session settings—the session duration and what happens when the client
 		                     * closes—for one or more users.
-		                     * @see {@link https://api.slack.com/methods/admin.users.session.setSettings `admin.users.session.setSettings` API reference}.
+		                     * @see {@link https://docs.slack.dev/reference/methods/admin.users.session.setSettings `admin.users.session.setSettings` API reference}.
 		                     */
 		                    setSettings: bindApiCall(this, 'admin.users.session.setSettings'),
 		                },
 		                /**
 		                 * @description Set an existing guest, regular user, or owner to be an admin user.
-		                 * @see {@link https://api.slack.com/methods/admin.users.setAdmin `admin.users.setAdmin` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.users.setAdmin `admin.users.setAdmin` API reference}.
 		                 */
 		                setAdmin: bindApiCall(this, 'admin.users.setAdmin'),
 		                /**
 		                 * @description Set an expiration for a guest user.
-		                 * @see {@link https://api.slack.com/methods/admin.users.setExpiration `admin.users.setExpiration` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.users.setExpiration `admin.users.setExpiration` API reference}.
 		                 */
 		                setExpiration: bindApiCall(this, 'admin.users.setExpiration'),
 		                /**
 		                 * @description Set an existing guest, regular user, or admin user to be a workspace owner.
-		                 * @see {@link https://api.slack.com/methods/admin.users.setOwner `admin.users.setOwner` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.users.setOwner `admin.users.setOwner` API reference}.
 		                 */
 		                setOwner: bindApiCall(this, 'admin.users.setOwner'),
 		                /**
 		                 * @description Set an existing guest user, admin user, or owner to be a regular user.
-		                 * @see {@link https://api.slack.com/methods/admin.users.setRegular `admin.users.setRegular` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.users.setRegular `admin.users.setRegular` API reference}.
 		                 */
 		                setRegular: bindApiCall(this, 'admin.users.setRegular'),
 		                unsupportedVersions: {
 		                    /**
 		                     * @description Ask Slackbot to send you an export listing all workspace members using unsupported software,
 		                     * presented as a zipped CSV file.
-		                     * @see {@link https://api.slack.com/methods/admin.users.unsupportedVersions.export `admin.users.unsupportedVersions.export` API reference}.
+		                     * @see {@link https://docs.slack.dev/reference/methods/admin.users.unsupportedVersions.export `admin.users.unsupportedVersions.export` API reference}.
 		                     */
 		                    export: bindApiCall(this, 'admin.users.unsupportedVersions.export'),
 		                },
@@ -64700,30 +65232,30 @@ function requireMethods () {
 		                collaborators: {
 		                    /**
 		                     * @description Add collaborators to workflows within the team or enterprise.
-		                     * @see {@link https://api.slack.com/methods/admin.workflows.collaborators.add `admin.workflows.collaborators.add` API reference}.
+		                     * @see {@link https://docs.slack.dev/reference/methods/admin.workflows.collaborators.add `admin.workflows.collaborators.add` API reference}.
 		                     */
 		                    add: bindApiCall(this, 'admin.workflows.collaborators.add'),
 		                    /**
 		                     * @description Remove collaborators from workflows within the team or enterprise.
-		                     * @see {@link https://api.slack.com/methods/admin.workflows.collaborators.remove `admin.workflows.collaborators.remove` API reference}.
+		                     * @see {@link https://docs.slack.dev/reference/methods/admin.workflows.collaborators.remove `admin.workflows.collaborators.remove` API reference}.
 		                     */
 		                    remove: bindApiCall(this, 'admin.workflows.collaborators.remove'),
 		                },
 		                permissions: {
 		                    /**
 		                     * @description Look up the permissions for a set of workflows.
-		                     * @see {@link https://api.slack.com/methods/admin.workflows.permissions.lookup `admin.workflows.permissions.lookup` API reference}.
+		                     * @see {@link https://docs.slack.dev/reference/methods/admin.workflows.permissions.lookup `admin.workflows.permissions.lookup` API reference}.
 		                     */
 		                    lookup: bindApiCall(this, 'admin.workflows.permissions.lookup'),
 		                },
 		                /**
 		                 * @description Search workflows within the team or enterprise.
-		                 * @see {@link https://api.slack.com/methods/admin.workflows.search `admin.workflows.search` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.workflows.search `admin.workflows.search` API reference}.
 		                 */
 		                search: bindApiCallWithOptionalArgument(this, 'admin.workflows.search'),
 		                /**
 		                 * @description Unpublish workflows within the team or enterprise.
-		                 * @see {@link https://api.slack.com/methods/admin.workflows.unpublish `admin.workflows.unpublish` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/admin.workflows.unpublish `admin.workflows.unpublish` API reference}.
 		                 */
 		                unpublish: bindApiCall(this, 'admin.workflows.unpublish'),
 		            },
@@ -64731,7 +65263,7 @@ function requireMethods () {
 		        this.api = {
 		            /**
 		             * @description Checks API calling code.
-		             * @see {@link https://api.slack.com/methods/api.test `api.test` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/api.test `api.test` API reference}.
 		             */
 		            test: bindApiCallWithOptionalArgument(this, 'api.test'),
 		        };
@@ -64739,17 +65271,17 @@ function requireMethods () {
 		            threads: {
 		                /**
 		                 * @description Set loading status to indicate that the app is building a response.
-		                 * @see {@link https://api.slack.com/methods/assistant.threads.setStatus `assistant.threads.setStatus` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/assistant.threads.setStatus `assistant.threads.setStatus` API reference}.
 		                 */
 		                setStatus: bindApiCall(this, 'assistant.threads.setStatus'),
 		                /**
 		                 * @description Set suggested prompts for the user. Can suggest up to four prompts.
-		                 * @see {@link https://api.slack.com/methods/assistant.threads.setSuggestedPrompts `assistant.threads.setSuggestedPrompts` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/assistant.threads.setSuggestedPrompts `assistant.threads.setSuggestedPrompts` API reference}.
 		                 */
 		                setSuggestedPrompts: bindApiCall(this, 'assistant.threads.setSuggestedPrompts'),
 		                /**
 		                 * @description Set the title of the thread. This is shown when a user views the app's chat history.
-		                 * @see {@link https://api.slack.com/methods/assistant.threads.setTitle `assistant.threads.setTitle` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/assistant.threads.setTitle `assistant.threads.setTitle` API reference}.
 		                 */
 		                setTitle: bindApiCall(this, 'assistant.threads.setTitle'),
 		            },
@@ -64759,7 +65291,7 @@ function requireMethods () {
 		                /**
 		                 * @description Generate a temporary Socket Mode WebSocket URL that your app can connect to in order to receive
 		                 * events and interactive payloads over.
-		                 * @see {@link https://api.slack.com/methods/apps.connections.open `apps.connections.open` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/apps.connections.open `apps.connections.open` API reference}.
 		                 */
 		                open: bindApiCallWithOptionalArgument(this, 'apps.connections.open'),
 		            },
@@ -64768,7 +65300,7 @@ function requireMethods () {
 		                    /**
 		                     * @description Get a list of authorizations for the given event context.
 		                     * Each authorization represents an app installation that the event is visible to.
-		                     * @see {@link https://api.slack.com/methods/apps.event.authorizations.list `apps.event.authorizations.list` API reference}.
+		                     * @see {@link https://docs.slack.dev/reference/methods/apps.event.authorizations.list `apps.event.authorizations.list` API reference}.
 		                     */
 		                    list: bindApiCall(this, 'apps.event.authorizations.list'),
 		                },
@@ -64776,46 +65308,46 @@ function requireMethods () {
 		            manifest: {
 		                /**
 		                 * @description Create an app from an app manifest.
-		                 * @see {@link https://api.slack.com/methods/apps.manifest.create `apps.manifest.create` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/apps.manifest.create `apps.manifest.create` API reference}.
 		                 */
 		                create: bindApiCall(this, 'apps.manifest.create'),
 		                /**
 		                 * @description Permanently deletes an app created through app manifests.
-		                 * @see {@link https://api.slack.com/methods/apps.manifest.delete `apps.manifest.delete` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/apps.manifest.delete `apps.manifest.delete` API reference}.
 		                 */
 		                delete: bindApiCall(this, 'apps.manifest.delete'),
 		                /**
 		                 * @description Export an app manifest from an existing app.
-		                 * @see {@link https://api.slack.com/methods/apps.manifest.export `apps.manifest.export` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/apps.manifest.export `apps.manifest.export` API reference}.
 		                 */
 		                export: bindApiCall(this, 'apps.manifest.export'),
 		                /**
 		                 * @description Update an app from an app manifest.
-		                 * @see {@link https://api.slack.com/methods/apps.manifest.update `apps.manifest.update` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/apps.manifest.update `apps.manifest.update` API reference}.
 		                 */
 		                update: bindApiCall(this, 'apps.manifest.update'),
 		                /**
 		                 * @description Validate an app manifest.
-		                 * @see {@link https://api.slack.com/methods/apps.manifest.validate `apps.manifest.validate` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/apps.manifest.validate `apps.manifest.validate` API reference}.
 		                 */
 		                validate: bindApiCall(this, 'apps.manifest.validate'),
 		            },
 		            /**
 		             * @description Uninstalls your app from a workspace.
-		             * @see {@link https://api.slack.com/methods/apps.uninstall `apps.uninstall` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/apps.uninstall `apps.uninstall` API reference}.
 		             */
 		            uninstall: bindApiCall(this, 'apps.uninstall'),
 		        };
 		        this.auth = {
 		            /**
 		             * @description Revokes a token.
-		             * @see {@link https://api.slack.com/methods/auth.revoke `auth.revoke` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/auth.revoke `auth.revoke` API reference}.
 		             */
 		            revoke: bindApiCallWithOptionalArgument(this, 'auth.revoke'),
 		            teams: {
 		                /**
 		                 * @description Obtain a full list of workspaces your org-wide app has been approved for.
-		                 * @see {@link https://api.slack.com/methods/auth.teams.list `auth.teams.list` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/auth.teams.list `auth.teams.list` API reference}.
 		                 */
 		                list: bindApiCallWithOptionalArgument(this, 'auth.teams.list'),
 		            },
@@ -64824,57 +65356,57 @@ function requireMethods () {
 		        this.bookmarks = {
 		            /**
 		             * @description Add bookmark to a channel.
-		             * @see {@link https://api.slack.com/methods/bookmarks.add `bookmarks.add` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/bookmarks.add `bookmarks.add` API reference}.
 		             */
 		            add: bindApiCall(this, 'bookmarks.add'),
 		            /**
 		             * @description Edit bookmark.
-		             * @see {@link https://api.slack.com/methods/bookmarks.edit `bookmarks.edit` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/bookmarks.edit `bookmarks.edit` API reference}.
 		             */
 		            edit: bindApiCall(this, 'bookmarks.edit'),
 		            /**
 		             * @description List bookmarks for a channel.
-		             * @see {@link https://api.slack.com/methods/bookmarks.list `bookmarks.list` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/bookmarks.list `bookmarks.list` API reference}.
 		             */
 		            list: bindApiCall(this, 'bookmarks.list'),
 		            /**
 		             * @description Remove bookmark from a channel.
-		             * @see {@link https://api.slack.com/methods/bookmarks.remove `bookmarks.remove` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/bookmarks.remove `bookmarks.remove` API reference}.
 		             */
 		            remove: bindApiCall(this, 'bookmarks.remove'),
 		        };
 		        this.bots = {
 		            /**
 		             * @description Gets information about a bot user.
-		             * @see {@link https://api.slack.com/methods/bots.info `bots.info` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/bots.info `bots.info` API reference}.
 		             */
 		            info: bindApiCallWithOptionalArgument(this, 'bots.info'),
 		        };
 		        this.calls = {
 		            /**
 		             * @description Registers a new Call.
-		             * @see {@link https://api.slack.com/methods/calls.add `calls.add` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/calls.add `calls.add` API reference}.
 		             */
 		            add: bindApiCall(this, 'calls.add'),
 		            /**
 		             * @description Ends a Call.
-		             * @see {@link https://api.slack.com/methods/calls.end `calls.end` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/calls.end `calls.end` API reference}.
 		             */
 		            end: bindApiCall(this, 'calls.end'),
 		            /**
 		             * @description Returns information about a Call.
-		             * @see {@link https://api.slack.com/methods/calls.info `calls.info` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/calls.info `calls.info` API reference}.
 		             */
 		            info: bindApiCall(this, 'calls.info'),
 		            /**
 		             * @description Updates information about a Call.
-		             * @see {@link https://api.slack.com/methods/calls.info `calls.info` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/calls.update `calls.update` API reference}.
 		             */
 		            update: bindApiCall(this, 'calls.update'),
 		            participants: {
 		                /**
 		                 * @description Registers new participants added to a Call.
-		                 * @see {@link https://api.slack.com/methods/calls.participants.add `calls.participants.add` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/calls.participants.add `calls.participants.add` API reference}.
 		                 */
 		                add: bindApiCall(this, 'calls.participants.add'),
 		                remove: bindApiCall(this, 'calls.participants.remove'),
@@ -64884,34 +65416,34 @@ function requireMethods () {
 		            access: {
 		                /**
 		                 * @description Remove access to a canvas for specified entities.
-		                 * @see {@link https://api.slack.com/methods/canvases.access.delete `canvases.access.delete` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/canvases.access.delete `canvases.access.delete` API reference}.
 		                 */
 		                delete: bindApiCall(this, 'canvases.access.delete'),
 		                /**
 		                 * @description Sets the access level to a canvas for specified entities.
-		                 * @see {@link https://api.slack.com/methods/canvases.access.set `canvases.access.set` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/canvases.access.set `canvases.access.set` API reference}.
 		                 */
 		                set: bindApiCall(this, 'canvases.access.set'),
 		            },
 		            /**
 		             * @description Create Canvas for a user.
-		             * @see {@link https://api.slack.com/methods/canvases.create `canvases.create` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/canvases.create `canvases.create` API reference}.
 		             */
 		            create: bindApiCallWithOptionalArgument(this, 'canvases.create'),
 		            /**
 		             * @description Deletes a canvas.
-		             * @see {@link https://api.slack.com/methods/canvases.delete `canvases.delete` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/canvases.delete `canvases.delete` API reference}.
 		             */
 		            delete: bindApiCall(this, 'canvases.delete'),
 		            /**
 		             * @description Update an existing canvas.
-		             * @see {@link https://api.slack.com/methods/canvases.edit `canvases.edit` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/canvases.edit `canvases.edit` API reference}.
 		             */
 		            edit: bindApiCall(this, 'canvases.edit'),
 		            sections: {
 		                /**
 		                 * @description Find sections matching the provided criteria.
-		                 * @see {@link https://api.slack.com/methods/canvases.sections.lookup `canvases.sections.lookup` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/canvases.sections.lookup `canvases.sections.lookup` API reference}.
 		                 */
 		                lookup: bindApiCall(this, 'canvases.sections.lookup'),
 		            },
@@ -64919,288 +65451,288 @@ function requireMethods () {
 		        this.chat = {
 		            /**
 		             * @description Deletes a message.
-		             * @see {@link https://api.slack.com/methods/chat.delete `chat.delete` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/chat.delete `chat.delete` API reference}.
 		             */
 		            delete: bindApiCall(this, 'chat.delete'),
 		            /**
 		             * @description Deletes a pending scheduled message from the queue.
-		             * @see {@link https://api.slack.com/methods/chat.deleteScheduledMessage `chat.deleteScheduledMessage` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/chat.deleteScheduledMessage `chat.deleteScheduledMessage` API reference}.
 		             */
 		            deleteScheduledMessage: bindApiCall(this, 'chat.deleteScheduledMessage'),
 		            /**
 		             * @description Retrieve a permalink URL for a specific extant message.
-		             * @see {@link https://api.slack.com/methods/chat.getPermalink `chat.getPermalink` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/chat.getPermalink `chat.getPermalink` API reference}.
 		             */
 		            getPermalink: bindApiCall(this, 'chat.getPermalink'),
 		            /**
 		             * @description Share a me message into a channel.
-		             * @see {@link https://api.slack.com/methods/chat.meMessage `chat.meMessage` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/chat.meMessage `chat.meMessage` API reference}.
 		             */
 		            meMessage: bindApiCall(this, 'chat.meMessage'),
 		            /**
 		             * @description Sends an ephemeral message to a user in a channel.
-		             * @see {@link https://api.slack.com/methods/chat.postEphemeral `chat.postEphemeral` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/chat.postEphemeral `chat.postEphemeral` API reference}.
 		             */
 		            postEphemeral: bindApiCall(this, 'chat.postEphemeral'),
 		            /**
 		             * @description Sends a message to a channel.
-		             * @see {@link https://api.slack.com/methods/chat.postMessage `chat.postMessage` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/chat.postMessage `chat.postMessage` API reference}.
 		             */
 		            postMessage: bindApiCall(this, 'chat.postMessage'),
 		            /**
 		             * @description Schedules a message to be sent to a channel.
-		             * @see {@link https://api.slack.com/methods/chat.scheduleMessage `chat.scheduleMessage` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/chat.scheduleMessage `chat.scheduleMessage` API reference}.
 		             */
 		            scheduleMessage: bindApiCall(this, 'chat.scheduleMessage'),
 		            scheduledMessages: {
 		                /**
 		                 * @description Returns a list of scheduled messages.
-		                 * @see {@link https://api.slack.com/methods/chat.scheduledMessages.list `chat.scheduledMessages.list` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/chat.scheduledMessages.list `chat.scheduledMessages.list` API reference}.
 		                 */
 		                list: bindApiCallWithOptionalArgument(this, 'chat.scheduledMessages.list'),
 		            },
 		            /**
 		             * @description Provide custom unfurl behavior for user-posted URLs.
-		             * @see {@link https://api.slack.com/methods/chat.unfurl `chat.unfurl` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/chat.unfurl `chat.unfurl` API reference}.
 		             */
 		            unfurl: bindApiCall(this, 'chat.unfurl'),
 		            /**
 		             * @description Updates a message.
-		             * @see {@link https://api.slack.com/methods/chat.update `chat.update` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/chat.update `chat.update` API reference}.
 		             */
 		            update: bindApiCall(this, 'chat.update'),
 		        };
 		        this.conversations = {
 		            /**
 		             * @description Accepts an invitation to a Slack Connect channel.
-		             * @see {@link https://api.slack.com/methods/conversations.acceptSharedInvite `conversations.acceptSharedInvite` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/conversations.acceptSharedInvite `conversations.acceptSharedInvite` API reference}.
 		             */
 		            acceptSharedInvite: bindApiCall(this, 'conversations.acceptSharedInvite'),
 		            /**
 		             * @description Approves an invitation to a Slack Connect channel.
-		             * @see {@link https://api.slack.com/methods/conversations.approveSharedInvite `conversations.approveSharedInvite` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/conversations.approveSharedInvite `conversations.approveSharedInvite` API reference}.
 		             */
 		            approveSharedInvite: bindApiCall(this, 'conversations.approveSharedInvite'),
 		            /**
 		             * @description Archives a conversation.
-		             * @see {@link https://api.slack.com/methods/conversations.archive `conversations.archive` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/conversations.archive `conversations.archive` API reference}.
 		             */
 		            archive: bindApiCall(this, 'conversations.archive'),
 		            canvases: {
 		                /**
 		                 * @description Create a Channel Canvas for a channel.
-		                 * @see {@link https://api.slack.com/methods/conversations.canvases.create `conversations.canvases.create` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/conversations.canvases.create `conversations.canvases.create` API reference}.
 		                 */
 		                create: bindApiCall(this, 'conversations.canvases.create'),
 		            },
 		            /**
 		             * @description Closes a direct message or multi-person direct message.
-		             * @see {@link https://api.slack.com/methods/conversations.close `conversations.close` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/conversations.close `conversations.close` API reference}.
 		             */
 		            close: bindApiCall(this, 'conversations.close'),
 		            /**
 		             * @description Initiates a public or private channel-based conversation.
-		             * @see {@link https://api.slack.com/methods/conversations.create `conversations.create` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/conversations.create `conversations.create` API reference}.
 		             */
 		            create: bindApiCall(this, 'conversations.create'),
 		            /**
 		             * @description Declines an invitation to a Slack Connect channel.
-		             * @see {@link https://api.slack.com/methods/conversations.declineSharedInvite `conversations.declineSharedInvite` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/conversations.declineSharedInvite `conversations.declineSharedInvite` API reference}.
 		             */
 		            declineSharedInvite: bindApiCall(this, 'conversations.declineSharedInvite'),
 		            externalInvitePermissions: {
 		                /**
 		                 * @description Convert a team in a shared channel from an External Limited channel to a fully shared Slack
 		                 * Connect channel or vice versa.
-		                 * @see {@link https://api.slack.com/methods/conversations.externalInvitePermissions.set `conversations.externalInvitePermissions.set` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/conversations.externalInvitePermissions.set `conversations.externalInvitePermissions.set` API reference}.
 		                 */
 		                set: bindApiCall(this, 'conversations.externalInvitePermissions.set'),
 		            },
 		            /**
 		             * @description Fetches a conversation's history of messages and events.
-		             * @see {@link https://api.slack.com/methods/conversations.history `conversations.history` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/conversations.history `conversations.history` API reference}.
 		             */
 		            history: bindApiCall(this, 'conversations.history'),
 		            /**
 		             * @description Retrieve information about a conversation.
-		             * @see {@link https://api.slack.com/methods/conversations.info `conversations.info` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/conversations.info `conversations.info` API reference}.
 		             */
 		            info: bindApiCall(this, 'conversations.info'),
 		            /**
 		             * @description Invites users to a channel.
-		             * @see {@link https://api.slack.com/methods/conversations.invite `conversations.invite` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/conversations.invite `conversations.invite` API reference}.
 		             */
 		            invite: bindApiCall(this, 'conversations.invite'),
 		            /**
 		             * @description Sends an invitation to a Slack Connect channel.
-		             * @see {@link https://api.slack.com/methods/conversations.inviteShared `conversations.inviteShared` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/conversations.inviteShared `conversations.inviteShared` API reference}.
 		             */
 		            inviteShared: bindApiCall(this, 'conversations.inviteShared'),
 		            /**
 		             * @description Joins an existing conversation.
-		             * @see {@link https://api.slack.com/methods/conversations.join `conversations.join` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/conversations.join `conversations.join` API reference}.
 		             */
 		            join: bindApiCall(this, 'conversations.join'),
 		            /**
 		             * @description Removes a user from a conversation.
-		             * @see {@link https://api.slack.com/methods/conversations.kick `conversations.kick` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/conversations.kick `conversations.kick` API reference}.
 		             */
 		            kick: bindApiCall(this, 'conversations.kick'),
 		            /**
 		             * @description Leaves a conversation.
-		             * @see {@link https://api.slack.com/methods/conversations.leave `conversations.leave` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/conversations.leave `conversations.leave` API reference}.
 		             */
 		            leave: bindApiCall(this, 'conversations.leave'),
 		            /**
 		             * @description List all channels in a Slack team.
-		             * @see {@link https://api.slack.com/methods/conversations.list `conversations.list` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/conversations.list `conversations.list` API reference}.
 		             */
 		            list: bindApiCallWithOptionalArgument(this, 'conversations.list'),
 		            /**
 		             * @description Lists shared channel invites that have been generated or received but have not been approved by
 		             * all parties.
-		             * @see {@link https://api.slack.com/methods/conversations.listConnectInvites `conversations.listConnectInvites` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/conversations.listConnectInvites `conversations.listConnectInvites` API reference}.
 		             */
 		            listConnectInvites: bindApiCallWithOptionalArgument(this, 'conversations.listConnectInvites'),
 		            /**
 		             * @description Sets the read cursor in a channel.
-		             * @see {@link https://api.slack.com/methods/conversations.mark `conversations.mark` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/conversations.mark `conversations.mark` API reference}.
 		             */
 		            mark: bindApiCall(this, 'conversations.mark'),
 		            /**
 		             * @description Retrieve members of a conversation.
-		             * @see {@link https://api.slack.com/methods/conversations.members `conversations.members` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/conversations.members `conversations.members` API reference}.
 		             */
 		            members: bindApiCall(this, 'conversations.members'),
 		            /**
 		             * @description Opens or resumes a direct message or multi-person direct message.
-		             * @see {@link https://api.slack.com/methods/conversations.open `conversations.open` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/conversations.open `conversations.open` API reference}.
 		             */
 		            open: bindApiCall(this, 'conversations.open'),
 		            /**
 		             * @description Renames a conversation.
-		             * @see {@link https://api.slack.com/methods/conversations.rename `conversations.rename` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/conversations.rename `conversations.rename` API reference}.
 		             */
 		            rename: bindApiCall(this, 'conversations.rename'),
 		            /**
 		             * @description Retrieve a thread of messages posted to a conversation.
-		             * @see {@link https://api.slack.com/methods/conversations.replies `conversations.replies` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/conversations.replies `conversations.replies` API reference}.
 		             */
 		            replies: bindApiCall(this, 'conversations.replies'),
 		            requestSharedInvite: {
 		                /**
 		                 * @description Approves a request to add an external user to a channel and sends them a Slack Connect invite.
-		                 * @see {@link https://api.slack.com/methods/conversations.requestSharedInvite.approve `conversations.requestSharedInvite.approve` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/conversations.requestSharedInvite.approve `conversations.requestSharedInvite.approve` API reference}.
 		                 */
 		                approve: bindApiCall(this, 'conversations.requestSharedInvite.approve'),
 		                /**
 		                 * @description Denies a request to invite an external user to a channel.
-		                 * @see {@link https://api.slack.com/methods/conversations.requestSharedInvite.deny `conversations.requestSharedInvite.deny` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/conversations.requestSharedInvite.deny `conversations.requestSharedInvite.deny` API reference}.
 		                 */
 		                deny: bindApiCall(this, 'conversations.requestSharedInvite.deny'),
 		                /**
 		                 * @description Lists requests to add external users to channels with ability to filter.
-		                 * @see {@link https://api.slack.com/methods/conversations.requestSharedInvite.list `conversations.requestSharedInvite.list` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/conversations.requestSharedInvite.list `conversations.requestSharedInvite.list` API reference}.
 		                 */
 		                list: bindApiCallWithOptionalArgument(this, 'conversations.requestSharedInvite.list'),
 		            },
 		            /**
 		             * @description Sets the purpose for a conversation.
-		             * @see {@link https://api.slack.com/methods/conversations.setPurpose `conversations.setPurpose` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/conversations.setPurpose `conversations.setPurpose` API reference}.
 		             */
 		            setPurpose: bindApiCall(this, 'conversations.setPurpose'),
 		            /**
 		             * @description Sets the topic for a conversation.
-		             * @see {@link https://api.slack.com/methods/conversations.setTopic `conversations.setTopic` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/conversations.setTopic `conversations.setTopic` API reference}.
 		             */
 		            setTopic: bindApiCall(this, 'conversations.setTopic'),
 		            /**
 		             * @description Reverses conversation archival.
-		             * @see {@link https://api.slack.com/methods/conversations.unarchive `conversations.unarchive` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/conversations.unarchive `conversations.unarchive` API reference}.
 		             */
 		            unarchive: bindApiCall(this, 'conversations.unarchive'),
 		        };
 		        this.dialog = {
 		            /**
 		             * @description Open a dialog with a user.
-		             * @see {@link https://api.slack.com/methods/dialog.open `dialog.open` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/dialog.open `dialog.open` API reference}.
 		             */
 		            open: bindApiCall(this, 'dialog.open'),
 		        };
 		        this.dnd = {
 		            /**
 		             * @description Ends the current user's Do Not Disturb session immediately.
-		             * @see {@link https://api.slack.com/methods/dnd.endDnd `dnd.endDnd` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/dnd.endDnd `dnd.endDnd` API reference}.
 		             */
 		            endDnd: bindApiCallWithOptionalArgument(this, 'dnd.endDnd'),
 		            /**
 		             * @description Ends the current user's snooze mode immediately.
-		             * @see {@link https://api.slack.com/methods/dnd.endSnooze `dnd.endSnooze` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/dnd.endSnooze `dnd.endSnooze` API reference}.
 		             */
 		            endSnooze: bindApiCallWithOptionalArgument(this, 'dnd.endSnooze'),
 		            /**
 		             * @description Retrieves a user's current Do Not Disturb status.
-		             * @see {@link https://api.slack.com/methods/dnd.info `dnd.info` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/dnd.info `dnd.info` API reference}.
 		             */
 		            info: bindApiCallWithOptionalArgument(this, 'dnd.info'),
 		            /**
 		             * @description Turns on Do Not Disturb mode for the current user, or changes its duration.
-		             * @see {@link https://api.slack.com/methods/dnd.setSnooze `dnd.setSnooze` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/dnd.setSnooze `dnd.setSnooze` API reference}.
 		             */
 		            setSnooze: bindApiCall(this, 'dnd.setSnooze'),
 		            /**
 		             * @description Retrieves the Do Not Disturb status for up to 50 users on a team.
-		             * @see {@link https://api.slack.com/methods/dnd.teamInfo `dnd.teamInfo` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/dnd.teamInfo `dnd.teamInfo` API reference}.
 		             */
 		            teamInfo: bindApiCall(this, 'dnd.teamInfo'),
 		        };
 		        this.emoji = {
 		            /**
 		             * @description Lists custom emoji for a team.
-		             * @see {@link https://api.slack.com/methods/emoji.list `emoji.list` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/emoji.list `emoji.list` API reference}.
 		             */
 		            list: bindApiCallWithOptionalArgument(this, 'emoji.list'),
 		        };
 		        this.files = {
 		            /**
-		             * @description Finishes an upload started with {@link https://api.slack.com/methods/files.getUploadURLExternal `files.getUploadURLExternal`}.
-		             * @see {@link https://api.slack.com/methods/files.completeUploadExternal `files.completeUploadExternal` API reference}.
+		             * @description Finishes an upload started with {@link https://docs.slack.dev/reference/methods/files.getUploadURLExternal `files.getUploadURLExternal`}.
+		             * @see {@link https://docs.slack.dev/reference/methods/files.completeUploadExternal `files.completeUploadExternal` API reference}.
 		             */
 		            completeUploadExternal: bindApiCall(this, 'files.completeUploadExternal'),
 		            /**
 		             * @description Deletes a file.
-		             * @see {@link https://api.slack.com/methods/files.delete `files.delete` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/files.delete `files.delete` API reference}.
 		             */
 		            delete: bindApiCall(this, 'files.delete'),
 		            /**
 		             * @description Gets a URL for an edge external file upload.
-		             * @see {@link https://api.slack.com/methods/files.getUploadURLExternal `files.getUploadURLExternal` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/files.getUploadURLExternal `files.getUploadURLExternal` API reference}.
 		             */
 		            getUploadURLExternal: bindApiCall(this, 'files.getUploadURLExternal'),
 		            /**
 		             * @description Gets information about a file.
-		             * @see {@link https://api.slack.com/methods/files.info `files.info` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/files.info `files.info` API reference}.
 		             */
 		            info: bindApiCall(this, 'files.info'),
 		            /**
 		             * @description List files for a team, in a channel, or from a user with applied filters.
-		             * @see {@link https://api.slack.com/methods/files.list `files.list` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/files.list `files.list` API reference}.
 		             */
 		            list: bindApiCall(this, 'files.list'),
 		            /**
 		             * @description Revokes public/external sharing access for a file.
-		             * @see {@link https://api.slack.com/methods/files.revokePublicURL `files.revokePublicURL` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/files.revokePublicURL `files.revokePublicURL` API reference}.
 		             */
 		            revokePublicURL: bindApiCall(this, 'files.revokePublicURL'),
 		            /**
 		             * @description Enables a file for public/external sharing.
-		             * @see {@link https://api.slack.com/methods/files.revokePublicURL `files.revokePublicURL` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/files.sharedPublicURL `files.sharedPublicURL` API reference}.
 		             */
 		            sharedPublicURL: bindApiCall(this, 'files.sharedPublicURL'),
 		            /**
 		             * @description Uploads or creates a file.
-		             * @deprecated Use `uploadV2` instead. See {@link https://api.slack.com/changelog/2024-04-a-better-way-to-upload-files-is-here-to-stay our post on retiring `files.upload`}.
-		             * @see {@link https://api.slack.com/methods/files.upload `files.upload` API reference}.
+		             * @deprecated Use `uploadV2` instead. See {@link https://docs.slack.dev/changelog/2024-04-a-better-way-to-upload-files-is-here-to-stay our post on retiring `files.upload`}.
+		             * @see {@link https://docs.slack.dev/reference/methods/files.upload `files.upload` API reference}.
 		             */
 		            upload: bindApiCall(this, 'files.upload'),
 		            /**
@@ -65220,39 +65752,39 @@ function requireMethods () {
 		            comments: {
 		                /**
 		                 * @description Deletes an existing comment on a file.
-		                 * @see {@link https://api.slack.com/methods/files.comments.delete `files.comments.delete` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/files.comments.delete `files.comments.delete` API reference}.
 		                 */
 		                delete: bindApiCall(this, 'files.comments.delete'),
 		            },
 		            remote: {
 		                /**
 		                 * @description Adds a file from a remote service.
-		                 * @see {@link https://api.slack.com/methods/files.remote.add `files.remote.add` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/files.remote.add `files.remote.add` API reference}.
 		                 */
 		                add: bindApiCall(this, 'files.remote.add'),
 		                /**
 		                 * @description Retrieve information about a remote file added to Slack.
-		                 * @see {@link https://api.slack.com/methods/files.remote.info `files.remote.info` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/files.remote.info `files.remote.info` API reference}.
 		                 */
 		                info: bindApiCall(this, 'files.remote.info'),
 		                /**
 		                 * @description List remote files added to Slack.
-		                 * @see {@link https://api.slack.com/methods/files.remote.list `files.remote.list` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/files.remote.list `files.remote.list` API reference}.
 		                 */
 		                list: bindApiCall(this, 'files.remote.list'),
 		                /**
 		                 * @description Remove a remote file.
-		                 * @see {@link https://api.slack.com/methods/files.remote.remove `files.remote.remove` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/files.remote.remove `files.remote.remove` API reference}.
 		                 */
 		                remove: bindApiCall(this, 'files.remote.remove'),
 		                /**
 		                 * @description Share a remote file into a channel.
-		                 * @see {@link https://api.slack.com/methods/files.remote.share `files.remote.share` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/files.remote.share `files.remote.share` API reference}.
 		                 */
 		                share: bindApiCall(this, 'files.remote.share'),
 		                /**
 		                 * @description Updates an existing remote file.
-		                 * @see {@link https://api.slack.com/methods/files.remote.update `files.remote.update` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/files.remote.update `files.remote.update` API reference}.
 		                 */
 		                update: bindApiCall(this, 'files.remote.update'),
 		            },
@@ -65260,19 +65792,19 @@ function requireMethods () {
 		        this.functions = {
 		            /**
 		             * @description Signal the failure to execute a Custom Function.
-		             * @see {@link https://api.slack.com/methods/functions.completeError `functions.completeError` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/functions.completeError `functions.completeError` API reference}.
 		             */
 		            completeError: bindApiCall(this, 'functions.completeError'),
 		            /**
 		             * @description Signal the successful completion of a Custom Function.
-		             * @see {@link https://api.slack.com/methods/functions.completeSuccess `functions.completeSuccess` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/functions.completeSuccess `functions.completeSuccess` API reference}.
 		             */
 		            completeSuccess: bindApiCall(this, 'functions.completeSuccess'),
 		        };
 		        this.migration = {
 		            /**
 		             * @description For Enterprise Grid workspaces, map local user IDs to global user IDs.
-		             * @see {@link https://api.slack.com/methods/migration.exchange `migration.exchange` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/migration.exchange `migration.exchange` API reference}.
 		             */
 		            exchange: bindApiCall(this, 'migration.exchange'),
 		        };
@@ -65280,18 +65812,18 @@ function requireMethods () {
 		            /**
 		             * @description Exchanges a temporary OAuth verifier code for an access token.
 		             * @deprecated This is a legacy method only used by classic Slack apps. Use `oauth.v2.access` for new Slack apps.
-		             * @see {@link https://api.slack.com/methods/oauth.access `oauth.access` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/oauth.access `oauth.access` API reference}.
 		             */
 		            access: bindApiCall(this, 'oauth.access'),
 		            v2: {
 		                /**
 		                 * @description Exchanges a temporary OAuth verifier code for an access token.
-		                 * @see {@link https://api.slack.com/methods/oauth.v2.access `oauth.v2.access` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/oauth.v2.access `oauth.v2.access` API reference}.
 		                 */
 		                access: bindApiCall(this, 'oauth.v2.access'),
 		                /**
 		                 * @description Exchanges a legacy access token for a new expiring access token and refresh token.
-		                 * @see {@link https://api.slack.com/methods/oauth.v2.exchange `oauth.v2.exchange` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/oauth.v2.exchange `oauth.v2.exchange` API reference}.
 		                 */
 		                exchange: bindApiCall(this, 'oauth.v2.exchange'),
 		            },
@@ -65299,13 +65831,13 @@ function requireMethods () {
 		        this.openid = {
 		            connect: {
 		                /**
-		                 * @description Exchanges a temporary OAuth verifier code for an access token for {@link https://api.slack.com/authentication/sign-in-with-slack Sign in with Slack}.
-		                 * @see {@link https://api.slack.com/methods/openid.connect.token `openid.connect.token` API reference}.
+		                 * @description Exchanges a temporary OAuth verifier code for an access token for {@link https://docs.slack.dev/authentication/sign-in-with-slack Sign in with Slack}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/openid.connect.token `openid.connect.token` API reference}.
 		                 */
 		                token: bindApiCall(this, 'openid.connect.token'),
 		                /**
-		                 * @description Get the identity of a user who has authorized {@link https://api.slack.com/authentication/sign-in-with-slack Sign in with Slack}.
-		                 * @see {@link https://api.slack.com/methods/openid.connect.userInfo `openid.connect.userInfo` API reference}.
+		                 * @description Get the identity of a user who has authorized {@link https://docs.slack.dev/authentication/sign-in-with-slack Sign in with Slack}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/openid.connect.userInfo `openid.connect.userInfo` API reference}.
 		                 */
 		                userInfo: bindApiCallWithOptionalArgument(this, 'openid.connect.userInfo'),
 		            },
@@ -65313,152 +65845,152 @@ function requireMethods () {
 		        this.pins = {
 		            /**
 		             * @description Pins an item to a channel.
-		             * @see {@link https://api.slack.com/methods/pins.add `pins.add` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/pins.add `pins.add` API reference}.
 		             */
 		            add: bindApiCall(this, 'pins.add'),
 		            /**
 		             * @description Lists items pinned to a channel.
-		             * @see {@link https://api.slack.com/methods/pins.list `pins.list` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/pins.list `pins.list` API reference}.
 		             */
 		            list: bindApiCall(this, 'pins.list'),
 		            /**
 		             * @description Un-pins an item from a channel.
-		             * @see {@link https://api.slack.com/methods/pins.remove `pins.remove` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/pins.remove `pins.remove` API reference}.
 		             */
 		            remove: bindApiCall(this, 'pins.remove'),
 		        };
 		        this.reactions = {
 		            /**
 		             * @description Adds a reaction to an item.
-		             * @see {@link https://api.slack.com/methods/reactions.add `reactions.add` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/reactions.add `reactions.add` API reference}.
 		             */
 		            add: bindApiCall(this, 'reactions.add'),
 		            /**
 		             * @description Gets reactions for an item.
-		             * @see {@link https://api.slack.com/methods/reactions.get `reactions.get` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/reactions.get `reactions.get` API reference}.
 		             */
 		            get: bindApiCall(this, 'reactions.get'),
 		            /**
 		             * @description List reactions made by a user.
-		             * @see {@link https://api.slack.com/methods/reactions.list `reactions.list` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/reactions.list `reactions.list` API reference}.
 		             */
 		            list: bindApiCallWithOptionalArgument(this, 'reactions.list'),
 		            /**
 		             * @description Removes a reaction from an item.
-		             * @see {@link https://api.slack.com/methods/reactions.remove `reactions.remove` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/reactions.remove `reactions.remove` API reference}.
 		             */
 		            remove: bindApiCall(this, 'reactions.remove'),
 		        };
 		        // TODO: keep tabs on reminders APIs, may be deprecated once Later list APIs land
-		        // See: https://api.slack.com/changelog/2023-07-its-later-already-for-stars-and-reminders
+		        // See: https://docs.slack.dev/changelog/2023-07-its-later-already-for-stars-and-reminders
 		        this.reminders = {
 		            /**
 		             * @description Creates a reminder.
-		             * @see {@link https://api.slack.com/methods/reminders.add `reminders.add` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/reminders.add `reminders.add` API reference}.
 		             */
 		            add: bindApiCall(this, 'reminders.add'),
 		            /**
 		             * @description Marks a reminder as complete.
-		             * @see {@link https://api.slack.com/methods/reminders.complete `reminders.complete` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/reminders.complete `reminders.complete` API reference}.
 		             */
 		            complete: bindApiCall(this, 'reminders.complete'),
 		            /**
 		             * @description Deletes a reminder.
-		             * @see {@link https://api.slack.com/methods/reminders.delete `reminders.delete` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/reminders.delete `reminders.delete` API reference}.
 		             */
 		            delete: bindApiCall(this, 'reminders.delete'),
 		            /**
 		             * @description Gets information about a reminder.
-		             * @see {@link https://api.slack.com/methods/reminders.info `reminders.info` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/reminders.info `reminders.info` API reference}.
 		             */
 		            info: bindApiCall(this, 'reminders.info'),
 		            /**
 		             * @description Lists all reminders created by or for a given user.
-		             * @see {@link https://api.slack.com/methods/reminders.list `reminders.list` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/reminders.list `reminders.list` API reference}.
 		             */
 		            list: bindApiCallWithOptionalArgument(this, 'reminders.list'),
 		        };
 		        this.rtm = {
 		            /**
 		             * @description Starts a Real Time Messaging session.
-		             * @see {@link https://api.slack.com/methods/rtm.connect `rtm.connect` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/rtm.connect `rtm.connect` API reference}.
 		             */
 		            connect: bindApiCallWithOptionalArgument(this, 'rtm.connect'),
 		            /**
 		             * @description Starts a Real Time Messaging session.
-		             * @deprecated Use `rtm.connect` instead. See {@link https://api.slack.com/changelog/2021-10-rtm-start-to-stop our post on retiring `rtm.start`}.
-		             * @see {@link https://api.slack.com/methods/rtm.start `rtm.start` API reference}.
+		             * @deprecated Use `rtm.connect` instead. See {@link https://docs.slack.dev/changelog/2021-10-rtm-start-to-stop our post on retiring `rtm.start`}.
+		             * @see {@link https://docs.slack.dev/reference/methods/rtm.start `rtm.start` API reference}.
 		             */
 		            start: bindApiCallWithOptionalArgument(this, 'rtm.start'),
 		        };
 		        this.search = {
 		            /**
 		             * @description Searches for messages and files matching a query.
-		             * @see {@link https://api.slack.com/methods/search.all search.all` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/search.all search.all` API reference}.
 		             */
 		            all: bindApiCall(this, 'search.all'),
 		            /**
 		             * @description Searches for files matching a query.
-		             * @see {@link https://api.slack.com/methods/search.files search.files` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/search.files search.files` API reference}.
 		             */
 		            files: bindApiCall(this, 'search.files'),
 		            /**
 		             * @description Searches for messages matching a query.
-		             * @see {@link https://api.slack.com/methods/search.messages search.messages` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/search.messages search.messages` API reference}.
 		             */
 		            messages: bindApiCall(this, 'search.messages'),
 		        };
 		        this.team = {
 		            /**
 		             * @description Gets the access logs for the current team.
-		             * @see {@link https://api.slack.com/methods/team.accessLogs `team.accessLogs` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/team.accessLogs `team.accessLogs` API reference}.
 		             */
 		            accessLogs: bindApiCallWithOptionalArgument(this, 'team.accessLogs'),
 		            /**
 		             * @description Gets billable users information for the current team.
-		             * @see {@link https://api.slack.com/methods/team.billableInfo `team.billableInfo` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/team.billableInfo `team.billableInfo` API reference}.
 		             */
 		            billableInfo: bindApiCallWithOptionalArgument(this, 'team.billableInfo'),
 		            billing: {
 		                /**
 		                 * @description Reads a workspace's billing plan information.
-		                 * @see {@link https://api.slack.com/methods/team.billing.info `team.billing.info` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/team.billing.info `team.billing.info` API reference}.
 		                 */
 		                info: bindApiCall(this, 'team.billing.info'),
 		            },
 		            externalTeams: {
 		                /**
 		                 * @description Disconnect an external organization.
-		                 * @see {@link https://api.slack.com/methods/team.externalTeams.disconnect `team.externalTeams.disconnect` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/team.externalTeams.disconnect `team.externalTeams.disconnect` API reference}.
 		                 */
 		                disconnect: bindApiCall(this, 'team.externalTeams.disconnect'),
 		                /**
 		                 * @description Returns a list of all the external teams connected and details about the connection.
-		                 * @see {@link https://api.slack.com/methods/team.externalTeams.list `team.externalTeams.list` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/team.externalTeams.list `team.externalTeams.list` API reference}.
 		                 */
 		                list: bindApiCall(this, 'team.externalTeams.list'),
 		            },
 		            /**
 		             * @description Gets information about the current team.
-		             * @see {@link https://api.slack.com/methods/team.info `team.info` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/team.info `team.info` API reference}.
 		             */
 		            info: bindApiCallWithOptionalArgument(this, 'team.info'),
 		            /**
 		             * @description Gets the integration logs for the current team.
-		             * @see {@link https://api.slack.com/methods/team.integrationLogs `team.integrationLogs` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/team.integrationLogs `team.integrationLogs` API reference}.
 		             */
 		            integrationLogs: bindApiCallWithOptionalArgument(this, 'team.integrationLogs'),
 		            preferences: {
 		                /**
 		                 * @description Retrieve a list of a workspace's team preferences.
-		                 * @see {@link https://api.slack.com/methods/team.preferences.list `team.preferences.list` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/team.preferences.list `team.preferences.list` API reference}.
 		                 */
 		                list: bindApiCallWithOptionalArgument(this, 'team.preferences.list'),
 		            },
 		            profile: {
 		                /**
 		                 * @description Retrieve a team's profile.
-		                 * @see {@link https://api.slack.com/methods/team.profile.get `team.profile.get` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/team.profile.get `team.profile.get` API reference}.
 		                 */
 		                get: bindApiCallWithOptionalArgument(this, 'team.profile.get'),
 		            },
@@ -65467,7 +65999,7 @@ function requireMethods () {
 		            tokens: {
 		                /**
 		                 * @description Exchanges a refresh token for a new app configuration token.
-		                 * @see {@link https://api.slack.com/methods/tooling.tokens.rotate `tooling.tokens.rotate` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/tooling.tokens.rotate `tooling.tokens.rotate` API reference}.
 		                 */
 		                rotate: bindApiCall(this, 'tooling.tokens.rotate'),
 		            },
@@ -65475,38 +66007,38 @@ function requireMethods () {
 		        this.usergroups = {
 		            /**
 		             * @description Create a User Group.
-		             * @see {@link https://api.slack.com/methods/usergroups.create `usergroups.create` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/usergroups.create `usergroups.create` API reference}.
 		             */
 		            create: bindApiCall(this, 'usergroups.create'),
 		            /**
 		             * @description Disable an existing User Group.
-		             * @see {@link https://api.slack.com/methods/usergroups.disable `usergroups.disable` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/usergroups.disable `usergroups.disable` API reference}.
 		             */
 		            disable: bindApiCall(this, 'usergroups.disable'),
 		            /**
 		             * @description Enable an existing User Group.
-		             * @see {@link https://api.slack.com/methods/usergroups.enable `usergroups.enable` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/usergroups.enable `usergroups.enable` API reference}.
 		             */
 		            enable: bindApiCall(this, 'usergroups.enable'),
 		            /**
 		             * @description List all User Groups for a team.
-		             * @see {@link https://api.slack.com/methods/usergroups.list `usergroups.list` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/usergroups.list `usergroups.list` API reference}.
 		             */
 		            list: bindApiCallWithOptionalArgument(this, 'usergroups.list'),
 		            /**
 		             * @description Update an existing User Group.
-		             * @see {@link https://api.slack.com/methods/usergroups.update `usergroups.update` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/usergroups.update `usergroups.update` API reference}.
 		             */
 		            update: bindApiCall(this, 'usergroups.update'),
 		            users: {
 		                /**
 		                 * @description List all users in a User Group.
-		                 * @see {@link https://api.slack.com/methods/usergroups.users.list `usergroups.users.list` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/usergroups.users.list `usergroups.users.list` API reference}.
 		                 */
 		                list: bindApiCall(this, 'usergroups.users.list'),
 		                /**
 		                 * @description Update the list of users in a User Group.
-		                 * @see {@link https://api.slack.com/methods/usergroups.users.update `usergroups.users.update` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/usergroups.users.update `usergroups.users.update` API reference}.
 		                 */
 		                update: bindApiCall(this, 'usergroups.users.update'),
 		            },
@@ -65514,65 +66046,65 @@ function requireMethods () {
 		        this.users = {
 		            /**
 		             * @description List conversations the calling user may access.
-		             * @see {@link https://api.slack.com/methods/users.conversations `users.conversations` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/users.conversations `users.conversations` API reference}.
 		             */
 		            conversations: bindApiCall(this, 'users.conversations'),
 		            /**
 		             * @description Delete the user profile photo.
-		             * @see {@link https://api.slack.com/methods/users.deletePhoto `users.deletePhoto` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/users.deletePhoto `users.deletePhoto` API reference}.
 		             */
 		            deletePhoto: bindApiCall(this, 'users.deletePhoto'),
 		            discoverableContacts: {
 		                /**
 		                 * @description Lookup an email address to see if someone is on Slack.
-		                 * @see {@link https://api.slack.com/methods/users.discoverableContacts.lookup `users.discoverableContacts.lookup` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/users.discoverableContacts.lookup `users.discoverableContacts.lookup` API reference}.
 		                 */
 		                lookup: bindApiCall(this, 'users.discoverableContacts.lookup'),
 		            },
 		            /**
 		             * @description Gets user presence information.
-		             * @see {@link https://api.slack.com/methods/users.getPresence `users.getPresence` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/users.getPresence `users.getPresence` API reference}.
 		             */
 		            getPresence: bindApiCall(this, 'users.getPresence'),
 		            /**
 		             * @description Get a user's identity.
-		             * @see {@link https://api.slack.com/methods/users.identity `users.identity` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/users.identity `users.identity` API reference}.
 		             */
 		            identity: bindApiCall(this, 'users.identity'),
 		            /**
 		             * @description Gets information about a user.
-		             * @see {@link https://api.slack.com/methods/users.info `users.info` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/users.info `users.info` API reference}.
 		             */
 		            info: bindApiCall(this, 'users.info'),
 		            /**
 		             * @description Lists all users in a Slack team.
-		             * @see {@link https://api.slack.com/methods/users.list `users.list` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/users.list `users.list` API reference}.
 		             */
 		            list: bindApiCall(this, 'users.list'),
 		            /**
 		             * @description Find a user with an email address.
-		             * @see {@link https://api.slack.com/methods/users.lookupByEmail `users.lookupByEmail` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/users.lookupByEmail `users.lookupByEmail` API reference}.
 		             */
 		            lookupByEmail: bindApiCall(this, 'users.lookupByEmail'),
 		            /**
 		             * @description Set the user profile photo.
-		             * @see {@link https://api.slack.com/methods/users.setPhoto `users.setPhoto` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/users.setPhoto `users.setPhoto` API reference}.
 		             */
 		            setPhoto: bindApiCall(this, 'users.setPhoto'),
 		            /**
 		             * @description Manually sets user presence.
-		             * @see {@link https://api.slack.com/methods/users.setPresence `users.setPresence` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/users.setPresence `users.setPresence` API reference}.
 		             */
 		            setPresence: bindApiCall(this, 'users.setPresence'),
 		            profile: {
 		                /**
 		                 * @description Retrieve a user's profile information, including their custom status.
-		                 * @see {@link https://api.slack.com/methods/users.profile.get `users.profile.get` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/users.profile.get `users.profile.get` API reference}.
 		                 */
 		                get: bindApiCall(this, 'users.profile.get'),
 		                /**
 		                 * @description Set a user's profile information, including custom status.
-		                 * @see {@link https://api.slack.com/methods/users.profile.set `users.profile.set` API reference}.
+		                 * @see {@link https://docs.slack.dev/reference/methods/users.profile.set `users.profile.set` API reference}.
 		                 */
 		                set: bindApiCall(this, 'users.profile.set'),
 		            },
@@ -65580,22 +66112,22 @@ function requireMethods () {
 		        this.views = {
 		            /**
 		             * @description Open a view for a user.
-		             * @see {@link https://api.slack.com/methods/views.open `views.open` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/views.open `views.open` API reference}.
 		             */
 		            open: bindApiCall(this, 'views.open'),
 		            /**
 		             * @description Publish a static view for a user.
-		             * @see {@link https://api.slack.com/methods/views.publish `views.publish` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/views.publish `views.publish` API reference}.
 		             */
 		            publish: bindApiCall(this, 'views.publish'),
 		            /**
 		             * @description Push a view onto the stack of a root view.
-		             * @see {@link https://api.slack.com/methods/views.push `views.push` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/views.push `views.push` API reference}.
 		             */
 		            push: bindApiCall(this, 'views.push'),
 		            /**
 		             * @description Update an existing view.
-		             * @see {@link https://api.slack.com/methods/views.update `views.update` API reference}.
+		             * @see {@link https://docs.slack.dev/reference/methods/views.update `views.update` API reference}.
 		             */
 		            update: bindApiCall(this, 'views.update'),
 		        };
@@ -65604,53 +66136,75 @@ function requireMethods () {
 		        // ------------------
 		        // TODO: breaking changes for future majors:
 		        // - stars.* methods are marked as deprecated; once Later has APIs, these will see an official sunsetting timeline
-		        // - workflows.* methods, Sep 12 2024: https://api.slack.com/changelog/2023-08-workflow-steps-from-apps-step-back
+		        // - workflows.* methods, Sep 12 2024: https://docs.slack.dev/changelog/2023-08-workflow-steps-from-apps-step-back
 		        this.stars = {
 		            /**
 		             * @description Save an item for later. Formerly known as adding a star.
 		             * @deprecated Stars can still be added but they can no longer be viewed or interacted with by end-users.
-		             * See {@link https://api.slack.com/changelog/2023-07-its-later-already-for-stars-and-reminders our post on stars and the Later list}.
-		             * @see {@link https://api.slack.com/methods/stars.add `stars.add` API reference}.
+		             * See {@link https://docs.slack.dev/changelog/2023-07-its-later-already-for-stars-and-reminders our post on stars and the Later list}.
+		             * @see {@link https://docs.slack.dev/reference/methods/stars.add `stars.add` API reference}.
 		             */
 		            add: bindApiCall(this, 'stars.add'),
 		            /**
 		             * @description List a user's saved items, formerly known as stars.
 		             * @deprecated Stars can still be listed but they can no longer be viewed or interacted with by end-users.
-		             * See {@link https://api.slack.com/changelog/2023-07-its-later-already-for-stars-and-reminders our post on stars and the Later list}.
-		             * @see {@link https://api.slack.com/methods/stars.list `stars.list` API reference}.
+		             * See {@link https://docs.slack.dev/changelog/2023-07-its-later-already-for-stars-and-reminders our post on stars and the Later list}.
+		             * @see {@link https://docs.slack.dev/reference/methods/stars.list `stars.list` API reference}.
 		             */
 		            list: bindApiCall(this, 'stars.list'),
 		            /**
 		             * @description Remove a saved item from a user's saved items, formerly known as stars.
 		             * @deprecated Stars can still be removed but they can no longer be viewed or interacted with by end-users.
-		             * See {@link https://api.slack.com/changelog/2023-07-its-later-already-for-stars-and-reminders our post on stars and the Later list}.
-		             * @see {@link https://api.slack.com/methods/stars.remove `stars.remove` API reference}.
+		             * See {@link https://docs.slack.dev/changelog/2023-07-its-later-already-for-stars-and-reminders our post on stars and the Later list}.
+		             * @see {@link https://docs.slack.dev/reference/methods/stars.remove `stars.remove` API reference}.
 		             */
 		            remove: bindApiCall(this, 'stars.remove'),
 		        };
 		        this.workflows = {
+		            featured: {
+		                /**
+		                 * @description Add featured workflows to a channel.
+		                 * @see {@link https://docs.slack.dev/reference/methods/workflows.featured.add `workflows.featured.add` API reference}.
+		                 */
+		                add: bindApiCall(this, 'workflows.featured.add'),
+		                /**
+		                 * @description List the featured workflows for specified channels.
+		                 * @see {@link https://docs.slack.dev/reference/methods/workflows.featured.list `workflows.featured.list` API reference}.
+		                 */
+		                list: bindApiCall(this, 'workflows.featured.list'),
+		                /**
+		                 * @description Remove featured workflows from a channel.
+		                 * @see {@link https://docs.slack.dev/reference/methods/workflows.featured.remove `workflows.featured.remove` API reference}.
+		                 */
+		                remove: bindApiCall(this, 'workflows.featured.remove'),
+		                /**
+		                 * @description Set featured workflows for a channel.
+		                 * @see {@link https://docs.slack.dev/reference/methods/workflows.featured.set `workflows.featured.set` API reference}.
+		                 */
+		                set: bindApiCall(this, 'workflows.featured.set'),
+		            },
 		            /**
 		             * @description Indicate that an app's step in a workflow completed execution.
 		             * @deprecated Steps from Apps is deprecated.
 		             * We're retiring all Slack app functionality around Steps from Apps in September 2024.
-		             * See {@link https://api.slack.com/changelog/2023-08-workflow-steps-from-apps-step-back our post on deprecating Steps from Apps}.
-		             * @see {@link https://api.slack.com/methods/workflows.stepCompleted `workflows.stepCompleted` API reference}.
+		             * See {@link https://docs.slack.dev/changelog/2023-08-workflow-steps-from-apps-step-back our post on deprecating Steps from Apps}.
+		             * @see {@link https://docs.slack.dev/legacy/legacy-steps-from-apps/legacy-steps-from-apps-workflow_step-object `workflows.stepCompleted` API reference}.
 		             */
 		            stepCompleted: bindApiCall(this, 'workflows.stepCompleted'),
 		            /**
 		             * @description Indicate that an app's step in a workflow failed to execute.
 		             * @deprecated Steps from Apps is deprecated.
 		             * We're retiring all Slack app functionality around Steps from Apps in September 2024.
-		             * See {@link https://api.slack.com/changelog/2023-08-workflow-steps-from-apps-step-back our post on deprecating Steps from Apps}.
-		             * @see {@link https://api.slack.com/methods/workflows.stepFailed `workflows.stepFailed` API reference}.
+		             * See {@link https://docs.slack.dev/changelog/2023-08-workflow-steps-from-apps-step-back our post on deprecating Steps from Apps}.
+		             * @see {@link https://docs.slack.dev/legacy/legacy-steps-from-apps/legacy-steps-from-apps-workflow_step-object `workflows.stepFailed` API reference}.
 		             */
 		            stepFailed: bindApiCall(this, 'workflows.stepFailed'),
 		            /**
 		             * @description Update the configuration for a workflow step.
 		             * @deprecated Steps from Apps is deprecated.
 		             * We're retiring all Slack app functionality around Steps from Apps in September 2024.
-		             * See {@link https://api.slack.com/changelog/2023-08-workflow-steps-from-apps-step-back our post on deprecating Steps from Apps}.
-		             * @see {@link https://api.slack.com/methods/workflows.updateStep `workflows.updateStep` API reference}.
+		             * See {@link https://docs.slack.dev/changelog/2023-08-workflow-steps-from-apps-step-back our post on deprecating Steps from Apps}.
+		             * @see {@link https://docs.slack.dev/legacy/legacy-steps-from-apps/legacy-steps-from-apps-workflow_step-object `workflows.updateStep` API reference}.
 		             */
 		            updateStep: bindApiCall(this, 'workflows.updateStep'),
 		        };
@@ -65665,51 +66219,6 @@ function requireMethods () {
 		
 	} (methods));
 	return methods;
-}
-
-var retryPolicies = {};
-
-var hasRequiredRetryPolicies;
-
-function requireRetryPolicies () {
-	if (hasRequiredRetryPolicies) return retryPolicies;
-	hasRequiredRetryPolicies = 1;
-	(function (exports) {
-		Object.defineProperty(exports, "__esModule", { value: true });
-		exports.rapidRetryPolicy = exports.fiveRetriesInFiveMinutes = exports.tenRetriesInAboutThirtyMinutes = void 0;
-		/**
-		 * The default retry policy. Retry up to 10 times, over the span of about 30 minutes. It's not exact because
-		 * randomization has been added to prevent a stampeding herd problem (if all instances in your application are retrying
-		 * a request at the exact same intervals, they are more likely to cause failures for each other).
-		 */
-		exports.tenRetriesInAboutThirtyMinutes = {
-		    retries: 10,
-		    factor: 1.96821,
-		    randomize: true,
-		};
-		/**
-		 * Short & sweet, five retries in five minutes and then bail.
-		 */
-		exports.fiveRetriesInFiveMinutes = {
-		    retries: 5,
-		    factor: 3.86,
-		};
-		/**
-		 * This policy is just to keep the tests running fast.
-		 */
-		exports.rapidRetryPolicy = {
-		    minTimeout: 0,
-		    maxTimeout: 1,
-		};
-		const policies = {
-		    tenRetriesInAboutThirtyMinutes: exports.tenRetriesInAboutThirtyMinutes,
-		    fiveRetriesInFiveMinutes: exports.fiveRetriesInFiveMinutes,
-		    rapidRetryPolicy: exports.rapidRetryPolicy,
-		};
-		exports.default = policies;
-		
-	} (retryPolicies));
-	return retryPolicies;
 }
 
 var hasRequiredWebClient;
@@ -65785,7 +66294,7 @@ function requireWebClient () {
 	Object.defineProperty(WebClient, "__esModule", { value: true });
 	WebClient.WebClient = WebClient.WebClientEvent = void 0;
 	WebClient.buildThreadTsWarningMessage = buildThreadTsWarningMessage;
-	const node_path_1 = require$$1$6;
+	const node_path_1 = require$$1$5;
 	const node_querystring_1 = require$$1$7;
 	const node_util_1 = require$$1$2;
 	const node_zlib_1 = __importDefault(require$$3$3);
@@ -65793,7 +66302,7 @@ function requireWebClient () {
 	const form_data_1 = __importDefault(requireForm_data());
 	const is_electron_1 = __importDefault(requireIsElectron());
 	const is_stream_1 = __importDefault(requireIsStream());
-	const p_queue_1 = __importDefault(requireDist$3());
+	const p_queue_1 = __importDefault(requireDist$2());
 	const p_retry_1 = __importStar(requirePRetry());
 	const errors_1 = requireErrors();
 	const file_upload_1 = requireFileUpload();
@@ -65830,7 +66339,7 @@ function requireWebClient () {
 	/**
 	 * A client for Slack's Web API
 	 *
-	 * This client provides an alias for each {@link https://api.slack.com/methods|Web API method}. Each method is
+	 * This client provides an alias for each {@link https://docs.slack.dev/reference/methods|Web API method}. Each method is
 	 * a convenience wrapper for calling the {@link WebClient#apiCall} method using the method name as the first parameter.
 	 */
 	let WebClient$1 = class WebClient extends methods_1.Methods {
@@ -65894,7 +66403,7 @@ function requireWebClient () {
 	    }
 	    /**
 	     * Generic method for calling a Web API method
-	     * @param method - the Web API method to call {@link https://api.slack.com/methods}
+	     * @param method - the Web API method to call {@link https://docs.slack.dev/reference/methods}
 	     * @param options - options
 	     */
 	    apiCall(method_1) {
@@ -65922,7 +66431,7 @@ function requireWebClient () {
 	                result.response_metadata.warnings.forEach(this.logger.warn.bind(this.logger));
 	            }
 	            // log warnings and errors in response metadata messages
-	            // related to https://api.slack.com/changelog/2016-09-28-response-metadata-is-on-the-way
+	            // related to https://docs.slack.dev/changelog/2016/09/28/response-metadata-is-on-the-way
 	            if (result.response_metadata !== undefined && result.response_metadata.messages !== undefined) {
 	                for (const msg of result.response_metadata.messages) {
 	                    const errReg = /\[ERROR\](.*)/;
@@ -66030,13 +66539,13 @@ function requireWebClient () {
 	     * This wrapper method provides an easy way to upload files using the following endpoints:
 	     *
 	     * **#1**: For each file submitted with this method, submit filenames
-	     * and file metadata to {@link https://api.slack.com/methods/files.getUploadURLExternal files.getUploadURLExternal} to request a URL to
+	     * and file metadata to {@link https://docs.slack.dev/reference/methods/files.getuploadurlexternal files.getUploadURLExternal} to request a URL to
 	     * which to send the file data to and an id for the file
 	     *
 	     * **#2**: for each returned file `upload_url`, upload corresponding file to
 	     * URLs returned from step 1 (e.g. https://files.slack.com/upload/v1/...\")
 	     *
-	     * **#3**: Complete uploads {@link https://api.slack.com/methods/files.completeUploadExternal files.completeUploadExternal}
+	     * **#3**: Complete uploads {@link https://docs.slack.dev/reference/methods/files.completeuploadexternal files.completeUploadExternal}
 	     * @param options
 	     */
 	    filesUploadV2(options) {
@@ -66425,13 +66934,13 @@ function requireWebClient () {
 	 * @param logger instance of web clients logger
 	 */
 	function warnDeprecations(method, logger) {
-	    const deprecatedMethods = ['workflows.'];
+	    const deprecatedMethods = ['workflows.stepCompleted', 'workflows.stepFailed', 'workflows.updateStep'];
 	    const isDeprecated = deprecatedMethods.some((depMethod) => {
 	        const re = new RegExp(`^${depMethod}`);
 	        return re.test(method);
 	    });
 	    if (isDeprecated) {
-	        logger.warn(`${method} is deprecated. Please check on https://api.slack.com/methods for an alternative.`);
+	        logger.warn(`${method} is deprecated. Please check on https://docs.slack.dev/reference/methods for an alternative.`);
 	    }
 	}
 	/**
@@ -66446,9 +66955,10 @@ function requireWebClient () {
 	    const hasAttachments = (args) => Array.isArray(args.attachments) && args.attachments.length;
 	    const missingAttachmentFallbackDetected = (args) => Array.isArray(args.attachments) &&
 	        args.attachments.some((attachment) => !attachment.fallback || attachment.fallback.trim() === '');
-	    const isEmptyText = (args) => args.text === undefined || args.text === null || args.text === '';
+	    const isEmptyText = (args) => (args.text === undefined || args.text === null || args.text === '') &&
+	        (args.markdown_text === undefined || args.markdown === null || args.markdown_text === '');
 	    const buildMissingTextWarning = () => `The top-level \`text\` argument is missing in the request payload for a ${method} call - It's a best practice to always provide a \`text\` argument when posting a message. The \`text\` is used in places where the content cannot be rendered such as: system push notifications, assistive technology such as screen readers, etc.`;
-	    const buildMissingFallbackWarning = () => `Additionally, the attachment-level \`fallback\` argument is missing in the request payload for a ${method} call - To avoid this warning, it is recommended to always provide a top-level \`text\` argument when posting a message. Alternatively, you can provide an attachment-level \`fallback\` argument, though this is now considered a legacy field (see https://api.slack.com/reference/messaging/attachments#legacy_fields for more details).`;
+	    const buildMissingFallbackWarning = () => `Additionally, the attachment-level \`fallback\` argument is missing in the request payload for a ${method} call - To avoid this warning, it is recommended to always provide a top-level \`text\` argument when posting a message. Alternatively, you can provide an attachment-level \`fallback\` argument, though this is now considered a legacy field (see https://docs.slack.dev/legacy/legacy-messaging/legacy-secondary-message-attachments for more details).`;
 	    if (isTargetMethod && typeof options === 'object') {
 	        if (hasAttachments(options)) {
 	            if (missingAttachmentFallbackDetected(options) && isEmptyText(options)) {
@@ -66516,30 +67026,6 @@ function requireWebClient () {
 	return WebClient;
 }
 
-var request = {};
-
-var hasRequiredRequest;
-
-function requireRequest () {
-	if (hasRequiredRequest) return request;
-	hasRequiredRequest = 1;
-	Object.defineProperty(request, "__esModule", { value: true });
-	
-	return request;
-}
-
-var response = {};
-
-var hasRequiredResponse;
-
-function requireResponse () {
-	if (hasRequiredResponse) return response;
-	hasRequiredResponse = 1;
-	Object.defineProperty(response, "__esModule", { value: true });
-	
-	return response;
-}
-
 var hasRequiredDist;
 
 function requireDist () {
@@ -66565,21 +67051,22 @@ function requireDist () {
 		    return (mod && mod.__esModule) ? mod : { "default": mod };
 		};
 		Object.defineProperty(exports, "__esModule", { value: true });
-		exports.addAppMetadata = exports.retryPolicies = exports.ErrorCode = exports.LogLevel = exports.WebClientEvent = exports.WebClient = void 0;
+		exports.WebClientEvent = exports.WebClient = exports.retryPolicies = exports.LogLevel = exports.addAppMetadata = exports.ErrorCode = void 0;
+		var errors_1 = requireErrors();
+		Object.defineProperty(exports, "ErrorCode", { enumerable: true, get: function () { return errors_1.ErrorCode; } });
+		var instrument_1 = requireInstrument();
+		Object.defineProperty(exports, "addAppMetadata", { enumerable: true, get: function () { return instrument_1.addAppMetadata; } });
+		var logger_1 = requireLogger();
+		Object.defineProperty(exports, "LogLevel", { enumerable: true, get: function () { return logger_1.LogLevel; } });
+		var retry_policies_1 = requireRetryPolicies();
+		Object.defineProperty(exports, "retryPolicies", { enumerable: true, get: function () { return __importDefault(retry_policies_1).default; } });
+		__exportStar(requireRequest(), exports);
+		__exportStar(requireResponse(), exports);
 		var WebClient_1 = requireWebClient();
 		Object.defineProperty(exports, "WebClient", { enumerable: true, get: function () { return WebClient_1.WebClient; } });
 		Object.defineProperty(exports, "WebClientEvent", { enumerable: true, get: function () { return WebClient_1.WebClientEvent; } });
-		var logger_1 = requireLogger();
-		Object.defineProperty(exports, "LogLevel", { enumerable: true, get: function () { return logger_1.LogLevel; } });
-		var errors_1 = requireErrors();
-		Object.defineProperty(exports, "ErrorCode", { enumerable: true, get: function () { return errors_1.ErrorCode; } });
-		var retry_policies_1 = requireRetryPolicies();
-		Object.defineProperty(exports, "retryPolicies", { enumerable: true, get: function () { return __importDefault(retry_policies_1).default; } });
-		var instrument_1 = requireInstrument();
-		Object.defineProperty(exports, "addAppMetadata", { enumerable: true, get: function () { return instrument_1.addAppMetadata; } });
+		// methods must be exported after WebClient
 		__exportStar(requireMethods(), exports);
-		__exportStar(requireRequest(), exports);
-		__exportStar(requireResponse(), exports);
 		
 	} (dist$3));
 	return dist$3;
