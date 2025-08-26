@@ -3,9 +3,7 @@ import { WebClient } from '@slack/web-api';
 import { BaseCommand } from '../base-command.js';
 
 export interface SlackAlertArgs {
-  slackChannel: string;
-  author?: string;
-  repository?: string;
+  channel: string;
   title?: string;
   message: string;
 }
@@ -28,7 +26,7 @@ export class SlackAlert extends BaseCommand<SlackAlertArgs> {
       return;
     }
 
-    if (!args.slackChannel) {
+    if (!args.channel) {
       core.setFailed('Slack channel is required');
       return;
     }
@@ -48,9 +46,9 @@ export class SlackAlert extends BaseCommand<SlackAlertArgs> {
       ${args.message}
       `;
 
-      await this.sendSlackMessage(botToken, body, args.slackChannel);
+      await this.sendSlackMessage(botToken, body, args.channel);
 
-      core.info(`Successfully sent Slack alert to channel: ${args.slackChannel}`);
+      core.info(`Successfully sent Slack alert to channel: ${args.channel}`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       core.setFailed(`Error sending Slack alert: ${errorMessage}`);
