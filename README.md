@@ -9,26 +9,26 @@ The DevOps Agent provides the following commands with their respective subcomman
 ### `jira` - Jira Issue Management
 
 - `add-comment` - Add comment to Jira issues
-- `update-status` - Update Jira issue status with optional comment  
+- `update-status` - Update Jira issue status with optional comment
 - `assign-to-release` - Assign Jira issues to a release version
 - `update-labels` - Add/remove labels on Jira issues
 
-| Subcommand | Description | Arguments | Outputs |
-|------------|-------------|-----------|---------|
-| `add-comment` | Add comment to Jira issues | `issues`, `comment`, `applyToParent`, `applyToSubtasks` | None |
-| `update-status` | Update Jira issue status with optional comment | `issues`, `targetStatus`, `comment`, `applyToParent`, `applyToSubtasks` | None |
-| `assign-to-release` | Assign Jira issues to a release version | `issues`, `version`, `applyToParent`, `applyToSubtasks` | None |
-| `update-labels` | Add/remove labels on Jira issues | `issues`, `labelsToAdd`, `labelsToRemove`, `applyToParent`, `applyToSubtasks` | None |### `github` - GitHub Operations
+| Subcommand              | Description                                    | Arguments                                                                             | Outputs |
+| ----------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------- | ------- | -------------------------------- |
+| **`add‑comment`**       | Add comment to Jira issues                     | `issues`<br>`comment`<br>`applyToParent`<br>`applyToSubtasks`                         | None    |
+| **`update‑status`**     | Update Jira issue status with optional comment | `issues`<br>`targetStatus`<br>`comment`<br>`applyToParent`<br>`applyToSubtasks`       | None    |
+| **`assign‑to‑release`** | Assign Jira issues to a release version        | `issues`<br>`version`<br>`applyToParent`<br>`applyToSubtasks`                         | None    |
+| **`update‑labels`**     | Add/remove labels on Jira issues               | `issues`<br>`labelsToAdd`<br>`labelsToRemove`<br>`applyToParent`<br>`applyToSubtasks` | None    | ### `github` - GitHub Operations |
 
 - `pr-commenter` - Validate Jira issues on a PR and synchronize comments
 - `get-diff-data` - Extract commit messages, files, and referenced issues from PR
 - `commit-info` - Get detailed information about a specific commit
 
-| Subcommand | Description | Arguments | Outputs |
-|------------|-------------|-----------|---------|
-| `pr-commenter` | Validate Jira issues on a PR and synchronize comments | `issues`, `prNumber`, `prTitleRegex`, `failWhenNoIssues`, `applyToParent`, `applyToSubtasks` | `commented`, `issuesFound` |
-| `get-diff-data` | Extract commit messages, files, and referenced issues from PR | `prNumber`, `issuePattern`, `dataSeparator` | `commit-messages`, `files`, `issues` |
-| `commit-info` | Get detailed information about a specific commit | `sha`, `repo` | `message`, `author-name`, `author-email`, `author-date`, `committer-name`, `committer-email`, `committer-date`, `sha`, `url` |
+| Subcommand          | Description                                                   | Arguments                                                                                              | Outputs                                                                                                                                      |
+| ------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`pr‑commenter`**  | Validate Jira issues on a PR and synchronize comments         | `issues`<br>`prNumber`<br>`prTitleRegex`<br>`failWhenNoIssues`<br>`applyToParent`<br>`applyToSubtasks` | `commented`<br>`issuesFound`                                                                                                                 |
+| **`get‑diff‑data`** | Extract commit messages, files, and referenced issues from PR | `prNumber`<br>`issuePattern`<br>`dataSeparator`                                                        | `commit-messages`<br>`files`<br>`issues`                                                                                                     |
+| **`commit‑info`**   | Get detailed information about a specific commit              | `sha`<br>`repo`                                                                                        | `message`<br>`author-name`<br>`author-email`<br>`author-date`<br>`committer-name`<br>`committer-email`<br>`committer-date`<br>`sha`<br>`url` |
 
 ### `version` - Version Management
 
@@ -37,30 +37,30 @@ The DevOps Agent provides the following commands with their respective subcomman
 - `extract` - Extract version from JSON/YAML files
 - `update` - Update version in JSON/YAML files
 
-| Subcommand | Description | Arguments | Outputs |
-|------------|-------------|-----------|---------|
-| `parse` | Parse and output semantic version components | `version` | `major`, `minor`, `patch`, `build`, `pre` |
-| `create-date-version` | Create a date-based version string | None | `version`, `timeOfDay`, `year`, `month`, `day` |
-| `extract` | Extract version from JSON/YAML files | `versionFile`, `versionAttribute` | `rawVersion`, `major`, `minor`, `patch`, `build`, `pre` |
-| `update` | Update version in JSON/YAML files | `version`, `versionFile`, `versionAttribute` | None |
+| Subcommand                | Description                                  | Arguments                                        | Outputs                                                           |
+| ------------------------- | -------------------------------------------- | ------------------------------------------------ | ----------------------------------------------------------------- |
+| **`parse`**               | Parse and output semantic version components | `version`                                        | `major`<br>`minor`<br>`patch`<br>`build`<br>`pre`                 |
+| **`create‑date‑version`** | Create a date-based version string           | None                                             | `version`<br>`timeOfDay`<br>`year`<br>`month`<br>`day`            |
+| **`extract`**             | Extract version from JSON/YAML files         | `versionFile`<br>`versionAttribute`              | `rawVersion`<br>`major`<br>`minor`<br>`patch`<br>`build`<br>`pre` |
+| **`update`**              | Update version in JSON/YAML files            | `version`<br>`versionFile`<br>`versionAttribute` | None                                                              |
 
 ### `text` - Text Processing
 
 - `get-issues` - Extract issue references from text using regex
 
-| Subcommand | Description | Arguments | Outputs |
-|------------|-------------|-----------|---------|
-| `get-issues` | Extract issue references from text using regex | `text`, `issuePattern`, `failWhenNoIssues` | `issues` |
+| Subcommand       | Description                                    | Arguments                                      | Outputs  |
+| ---------------- | ---------------------------------------------- | ---------------------------------------------- | -------- |
+| **`get‑issues`** | Extract issue references from text using regex | `text`<br>`issuePattern`<br>`failWhenNoIssues` | `issues` |
 
 ### `slack` - Slack Notifications
 
 - `e2e-notification` - Send formatted E2E test results to Slack channels
 - `alert` - Send custom alert messages to Slack channels
 
-| Subcommand | Description | Arguments | Outputs |
-|------------|-------------|-----------|---------|
-| `e2e-notification` | Send formatted E2E test results to Slack channels | `testName`, `testResult`, `totalTests`, `botToken`, `channel`, `alertChannel`, `testResultUrl`, `dockerImage`, `testFramework`, `branch`, `commitMessage`, `author`, `repository`, `version`, `buildUrl`, `buildNumber`, `sourceUrl` | `notification-sent`, `test-result` |
-| `alert` | Send custom alert messages to Slack channels | `slackChannel`, `title`, `message` | `notification-sent` |
+| Subcommand             | Description                                       | Arguments                                                                                                                                                                                                                                                            | Outputs                              |
+| ---------------------- | ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| **`e2e‑notification`** | Send formatted E2E test results to Slack channels | `testName`<br>`testResult`<br>`totalTests`<br>`botToken`<br>`channel`<br>`alertChannel`<br>`testResultUrl`<br>`dockerImage`<br>`testFramework`<br>`branch`<br>`commitMessage`<br>`author`<br>`repository`<br>`version`<br>`buildUrl`<br>`buildNumber`<br>`sourceUrl` | `notification-sent`<br>`test-result` |
+| **`alert`**            | Send custom alert messages to Slack channels      | `slackChannel`<br>`title`<br>`message`                                                                                                                                                                                                                               | `notification-sent`                  |
 
 ## Environment Variables
 

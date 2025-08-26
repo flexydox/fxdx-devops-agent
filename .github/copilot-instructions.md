@@ -19,6 +19,9 @@ Update the project README.md file to include:
 
 - List all available commands with subcommands, args and outputs
 - Use one table for each set of commands (one for jira, one for github, etc.)
+- subcommand is non breaking
+- subcommand should be bold
+- each argument on one line inside table cell
 
 #### Each Command with Subcommands
 
