@@ -17,7 +17,8 @@ Update the project README.md file to include:
 
 #### Overview
 
-- List all available commands with subcommands
+- List all available commands with subcommands, args and outputs
+- Use one table for each set of commands (one for jira, one for github, etc.)
 
 #### Each Command with Subcommands
 

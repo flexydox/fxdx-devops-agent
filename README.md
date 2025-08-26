@@ -9,15 +9,26 @@ The DevOps Agent provides the following commands with their respective subcomman
 ### `jira` - Jira Issue Management
 
 - `add-comment` - Add comment to Jira issues
-- `update-status` - Update Jira issue status with optional comment
+- `update-status` - Update Jira issue status with optional comment  
 - `assign-to-release` - Assign Jira issues to a release version
 - `update-labels` - Add/remove labels on Jira issues
 
-### `github` - GitHub Operations
+| Subcommand | Description | Arguments | Outputs |
+|------------|-------------|-----------|---------|
+| `add-comment` | Add comment to Jira issues | `issues`, `comment`, `applyToParent`, `applyToSubtasks` | None |
+| `update-status` | Update Jira issue status with optional comment | `issues`, `targetStatus`, `comment`, `applyToParent`, `applyToSubtasks` | None |
+| `assign-to-release` | Assign Jira issues to a release version | `issues`, `version`, `applyToParent`, `applyToSubtasks` | None |
+| `update-labels` | Add/remove labels on Jira issues | `issues`, `labelsToAdd`, `labelsToRemove`, `applyToParent`, `applyToSubtasks` | None |### `github` - GitHub Operations
 
 - `pr-commenter` - Validate Jira issues on a PR and synchronize comments
 - `get-diff-data` - Extract commit messages, files, and referenced issues from PR
 - `commit-info` - Get detailed information about a specific commit
+
+| Subcommand | Description | Arguments | Outputs |
+|------------|-------------|-----------|---------|
+| `pr-commenter` | Validate Jira issues on a PR and synchronize comments | `issues`, `prNumber`, `prTitleRegex`, `failWhenNoIssues`, `applyToParent`, `applyToSubtasks` | `commented`, `issuesFound` |
+| `get-diff-data` | Extract commit messages, files, and referenced issues from PR | `prNumber`, `issuePattern`, `dataSeparator` | `commit-messages`, `files`, `issues` |
+| `commit-info` | Get detailed information about a specific commit | `sha`, `repo` | `message`, `author-name`, `author-email`, `author-date`, `committer-name`, `committer-email`, `committer-date`, `sha`, `url` |
 
 ### `version` - Version Management
 
@@ -26,13 +37,30 @@ The DevOps Agent provides the following commands with their respective subcomman
 - `extract` - Extract version from JSON/YAML files
 - `update` - Update version in JSON/YAML files
 
+| Subcommand | Description | Arguments | Outputs |
+|------------|-------------|-----------|---------|
+| `parse` | Parse and output semantic version components | `version` | `major`, `minor`, `patch`, `build`, `pre` |
+| `create-date-version` | Create a date-based version string | None | `version`, `timeOfDay`, `year`, `month`, `day` |
+| `extract` | Extract version from JSON/YAML files | `versionFile`, `versionAttribute` | `rawVersion`, `major`, `minor`, `patch`, `build`, `pre` |
+| `update` | Update version in JSON/YAML files | `version`, `versionFile`, `versionAttribute` | None |
+
 ### `text` - Text Processing
 
 - `get-issues` - Extract issue references from text using regex
 
+| Subcommand | Description | Arguments | Outputs |
+|------------|-------------|-----------|---------|
+| `get-issues` | Extract issue references from text using regex | `text`, `issuePattern`, `failWhenNoIssues` | `issues` |
+
 ### `slack` - Slack Notifications
 
 - `e2e-notification` - Send formatted E2E test results to Slack channels
+- `alert` - Send custom alert messages to Slack channels
+
+| Subcommand | Description | Arguments | Outputs |
+|------------|-------------|-----------|---------|
+| `e2e-notification` | Send formatted E2E test results to Slack channels | `testName`, `testResult`, `totalTests`, `botToken`, `channel`, `alertChannel`, `testResultUrl`, `dockerImage`, `testFramework`, `branch`, `commitMessage`, `author`, `repository`, `version`, `buildUrl`, `buildNumber`, `sourceUrl` | `notification-sent`, `test-result` |
+| `alert` | Send custom alert messages to Slack channels | `slackChannel`, `title`, `message` | `notification-sent` |
 
 ## Environment Variables
 
@@ -558,6 +586,8 @@ Send formatted E2E test results to a Slack channel via Slack App authentication.
 
 **Usage Example:**
 
+````yaml
+**Usage Example:**
 ```yaml
 - name: Send E2E notification
   uses: flexydox/fxdx-devops-agent@v1
@@ -573,7 +603,44 @@ Send formatted E2E test results to a Slack channel via Slack App authentication.
         "channel": "qa-notifications",
         "alertChannel": "qa-alerts"
       }
+````
+
+### `alert`
+
+Send custom alert messages to Slack channels with configurable title and message content.
+
+**Arguments:**
+
+- `slackChannel` (string, required)
+  - Target Slack channel name or ID
+- `title` (string, required)
+  - Alert title/header message
+- `message` (string, required)
+  - Main alert message content (supports Slack markdown formatting)
+
+**Outputs:**
+
+- `notification-sent` - Whether notification was sent successfully
+
+**Usage Example:**
+
+```yaml
+- name: Send custom alert
+  uses: flexydox/fxdx-devops-agent@v1
+  env:
+    SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+  with:
+    command: slack
+    subcommand: alert
+    args: |
+      {
+        "slackChannel": "alerts",
+        "title": ":warning: Deployment Alert",
+        "message": "Production deployment has *failed* on branch `main`. Please check the logs."
+      }
 ```
+
+````
 
 ---
 
@@ -595,7 +662,7 @@ steps:
         {
           "key": "value"
         }
-```
+````
 
 **Parameters:**
 
@@ -1206,6 +1273,73 @@ Send comprehensive E2E test notifications:
         "testFramework": "Cypress",
         "branch": "staging",
         "repository": "${{ github.repository }}"
+      }
+```
+
+#### Alert (`slack alert`)
+
+Send custom alert messages to Slack channels:
+
+```yaml
+# Basic alert notification
+- name: Send deployment alert
+  uses: flexydox/fxdx-devops-agent@v1
+  env:
+    SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+  with:
+    command: slack
+    subcommand: alert
+    args: |
+      {
+        "slackChannel": "alerts",
+        "title": ":warning: Deployment Alert",
+        "message": "Production deployment has *failed* on branch `main`. Please check the logs."
+      }
+
+# Critical system alert
+- name: Send critical system alert
+  uses: flexydox/fxdx-devops-agent@v1
+  env:
+    SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+  with:
+    command: slack
+    subcommand: alert
+    args: |
+      {
+        "slackChannel": "critical-alerts",
+        "title": ":fire: Critical System Alert :fire:",
+        "message": "Database connection failure detected in production environment. Immediate action required!"
+      }
+
+# Success notification alert
+- name: Send success alert
+  uses: flexydox/fxdx-devops-agent@v1
+  env:
+    SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+  with:
+    command: slack
+    subcommand: alert
+    args: |
+      {
+        "slackChannel": "deployments",
+        "title": ":white_check_mark: Deployment Successful",
+        "message": "Application version `${{ github.ref_name }}` has been successfully deployed to production."
+      }
+
+# Conditional alert based on workflow status
+- name: Send failure alert
+  if: failure()
+  uses: flexydox/fxdx-devops-agent@v1
+  env:
+    SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+  with:
+    command: slack
+    subcommand: alert
+    args: |
+      {
+        "slackChannel": "dev-alerts",
+        "title": ":x: Workflow Failed",
+        "message": "Workflow *${{ github.workflow }}* failed in repository `${{ github.repository }}` on branch `${{ github.ref_name }}`."
       }
 ```
 
