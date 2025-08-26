@@ -72,6 +72,7 @@ export class GithubPRCommenter extends BaseCommand<GithubPRCommenterArgs> {
     });
 
     const issues = jiraIssues.map(mapIssueInfo);
+    core.debug(`Mapped issues: ${JSON.stringify(issues)}`);
 
     if (!issues || issues.length === 0) {
       core.info('No issues found, skipping validation.');

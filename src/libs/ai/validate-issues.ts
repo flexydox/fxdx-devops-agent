@@ -16,8 +16,7 @@ Pravidla hodnocení podle typů issue:
 - Epic: summary jasně definuje cíl epiku; description obsahuje detaily a cíle epiku.
 
 Zkontroluj, zda je issue dobře popsáno a zda odpovídá danému typu. Pokud je issue v pořádku, vrať "ok". 
-Pokud je issue špatně popsáno, vrať "warn" a doporučení k úpravě a návrh úpravy. Návrh úpravy by měl být konkrétní a
-inferovaný z existujícího názvu a description.
+
 Pokud je issue zcela nejasné nebo chybí důležité informace, vrať "error" a doporučení k úpravě a návrh úpravy. 
 Pokud summary nebo description prázdné, vrať "error" a doporučení k úpravě a návrh úpravy.
 
@@ -27,7 +26,7 @@ Význam výstupních polí:
 
 Vrať odpověď v JSON formátu:
 {
-  "status": "ok" | "warn" | "error",
+  "status": "ok" | "error",
   "recommendations": {
     "summary": "doporučení úpravy nebo prázdný string",
     "description": "doporučení úpravy nebo prázdný string"
