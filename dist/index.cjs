@@ -70301,6 +70301,60 @@ class VersionUpdate extends BaseCommand {
     }
 }
 
+/**
+ * Command to send Slack notifications after E2E test runs.
+ * Sends a formatted message with test results and metadata to a Slack webhook.
+ */
+class SlackAlert extends BaseCommand {
+    constructor() {
+        super('slack', 'alert');
+    }
+    async execute(args) {
+        // Validate required fields
+        const botToken = process.env.SLACK_BOT_TOKEN;
+        if (!botToken) {
+            coreExports.setFailed('SLACK_BOT_TOKEN environment variable is required');
+            return;
+        }
+        if (!args.slackChannel) {
+            coreExports.setFailed('Slack channel is required');
+            return;
+        }
+        if (!args.message) {
+            coreExports.setFailed('Slack alert message is required');
+            return;
+        }
+        coreExports.debug(`Sending Slack alert: ${args.title}`);
+        coreExports.debug(`Alert message: ${args.message}`);
+        try {
+            const body = `
+      *${args.title}*
+
+      ${args.message}
+      `;
+            await this.sendSlackMessage(botToken, body, args.slackChannel);
+            coreExports.info(`Successfully sent Slack alert to channel: ${args.slackChannel}`);
+        }
+        catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            coreExports.setFailed(`Error sending Slack alert: ${errorMessage}`);
+        }
+    }
+    async sendSlackMessage(botToken, body, targetChannel) {
+        const client = new distExports.WebClient(botToken);
+        coreExports.debug(`Sending message to Slack channel: ${targetChannel}`);
+        coreExports.debug(`Message preview: ${body}`);
+        const result = await client.chat.postMessage({
+            channel: targetChannel,
+            text: body
+        });
+        if (!result.ok) {
+            throw new Error(`Slack API request failed: ${result.error}`);
+        }
+        coreExports.debug('Slack message sent successfully');
+    }
+}
+
 const commands = {
     jira: {
         'add-comment': new JiraAddComment(),
@@ -70323,7 +70377,8 @@ const commands = {
         'get-issues': new TextGetIssues()
     },
     slack: {
-        'e2e-notification': new SlackE2ENotification()
+        'e2e-notification': new SlackE2ENotification(),
+        alert: new SlackAlert()
     }
 };
 function getCommand(commandName, subCommandName) {
