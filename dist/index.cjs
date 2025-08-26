@@ -70316,7 +70316,7 @@ class SlackAlert extends BaseCommand {
             coreExports.setFailed('SLACK_BOT_TOKEN environment variable is required');
             return;
         }
-        if (!args.slackChannel) {
+        if (!args.channel) {
             coreExports.setFailed('Slack channel is required');
             return;
         }
@@ -70332,8 +70332,8 @@ class SlackAlert extends BaseCommand {
 
       ${args.message}
       `;
-            await this.sendSlackMessage(botToken, body, args.slackChannel);
-            coreExports.info(`Successfully sent Slack alert to channel: ${args.slackChannel}`);
+            await this.sendSlackMessage(botToken, body, args.channel);
+            coreExports.info(`Successfully sent Slack alert to channel: ${args.channel}`);
         }
         catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
