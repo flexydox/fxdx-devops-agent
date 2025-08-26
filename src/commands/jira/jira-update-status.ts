@@ -8,6 +8,7 @@ import { compose } from '../../libs/fn-utils.js';
 
 export interface JiraUpdateStatusArgs {
   issues?: string;
+  ignoredStatuses?: string;
   targetStatus?: string;
   comment?: string;
   applyToParent?: boolean;
@@ -22,24 +23,36 @@ export class JiraUpdateStatus extends BaseJiraCommand<JiraUpdateStatusArgs> {
   async execute(args: JiraUpdateStatusArgs): Promise<void> {
     const issues = parseIssues(args.issues);
     const targetStatus = args.targetStatus;
+    const ignoredStatuses = args.ignoredStatuses?.split(',').map((s) => transliterateText(normalizeString(s))) || [];
     if (issues.length === 0) {
-      core.info('No issues provided, skipping status update.');
+      core.info('No issues provided, skipping the status update.');
       return;
     }
     if (!targetStatus) {
-      core.info('No target status provided, skipping status update.');
+      core.info('No target status provided, skipping the status update.');
       return;
     }
+    core.info(`Ignored statuses: ${ignoredStatuses.join(',')}`);
     await this.eachIssue(issues, {
       applyToParent: args.applyToParent ?? false,
       applyToSubtasks: args.applyToSubtasks ?? true,
       callback: async (issueKey, issue) => {
         const currentStatus = issue.fields.status;
         const currentStatusName = currentStatus?.name ?? 'Unknown';
+        const currentStatusSanitized = transliterateText(normalizeString(currentStatusName));
         const currentStatusCategory = currentStatus?.statusCategory?.key || 'unknown';
-        core.info(`Current status of issue ${issueKey} is ${currentStatusName} [${currentStatusCategory}]`);
+        core.info(
+          `Current status of issue ${issueKey} is ${currentStatusName} [${currentStatusCategory}]. Sanitized name: [${currentStatusSanitized}]`
+        );
+
+        if (ignoredStatuses.includes(currentStatusSanitized)) {
+          core.info(
+            `Issue ${issueKey} is in an ignored status '${currentStatusName}' [${currentStatusSanitized}], skipping the status update.`
+          );
+          return;
+        }
         if (currentStatusCategory === 'done') {
-          core.info(`Issue ${issueKey} is already in a done status, skipping.`);
+          core.info(`Issue ${issueKey} is already in a done status, skipping the status update.`);
           return;
         }
 
@@ -47,7 +60,7 @@ export class JiraUpdateStatus extends BaseJiraCommand<JiraUpdateStatusArgs> {
         const normalizedTargetStatus = normalize(targetStatus);
         const normalizedCurrentStatus = normalize(currentStatusName);
         if (normalizedCurrentStatus === normalizedTargetStatus) {
-          core.info(`Issue ${issueKey} is already in the target status '${targetStatus}', skipping.`);
+          core.info(`Issue ${issueKey} is already in the target status '${targetStatus}', skipping the status update.`);
           return;
         }
 

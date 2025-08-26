@@ -5,7 +5,10 @@ export function transliterateText(input: string): string {
 }
 
 export function normalizeString(input: string): string {
-  return input.toLowerCase();
+  if (!input) {
+    return '';
+  }
+  return input.trim().toLowerCase();
 }
 
 export function inferIssues(text: string, issuePattern: string): string[] {
