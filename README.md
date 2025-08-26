@@ -14,11 +14,13 @@ The DevOps Agent provides the following commands with their respective subcomman
 - `update-labels` - Add/remove labels on Jira issues
 
 | Subcommand              | Description                                    | Arguments                                                                             | Outputs |
-| ----------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------- | ------- | -------------------------------- |
+| ----------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------- | ------- |
 | **`add‑comment`**       | Add comment to Jira issues                     | `issues`<br>`comment`<br>`applyToParent`<br>`applyToSubtasks`                         | None    |
 | **`update‑status`**     | Update Jira issue status with optional comment | `issues`<br>`targetStatus`<br>`comment`<br>`applyToParent`<br>`applyToSubtasks`       | None    |
 | **`assign‑to‑release`** | Assign Jira issues to a release version        | `issues`<br>`version`<br>`applyToParent`<br>`applyToSubtasks`                         | None    |
-| **`update‑labels`**     | Add/remove labels on Jira issues               | `issues`<br>`labelsToAdd`<br>`labelsToRemove`<br>`applyToParent`<br>`applyToSubtasks` | None    | ### `github` - GitHub Operations |
+| **`update‑labels`**     | Add/remove labels on Jira issues               | `issues`<br>`labelsToAdd`<br>`labelsToRemove`<br>`applyToParent`<br>`applyToSubtasks` | None    |
+
+### `github` - GitHub Operations |
 
 - `pr-commenter` - Validate Jira issues on a PR and synchronize comments
 - `get-diff-data` - Extract commit messages, files, and referenced issues from PR
