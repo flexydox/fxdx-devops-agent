@@ -13,6 +13,7 @@ import { SlackE2ENotification } from './slack/slack-e2e-notification.js';
 import { VersionCreateDateVersion } from './version/version-create-date-version.js';
 import { VersionExtract } from './version/version-extract.js';
 import { VersionUpdate } from './version/version-update.js';
+import { SlackAlert } from './slack/slack-alert.js';
 
 const commands: Record<CommandName, Partial<Record<SubCommandName, BaseCommand<CommandArgs>>>> = {
   jira: {
@@ -36,7 +37,8 @@ const commands: Record<CommandName, Partial<Record<SubCommandName, BaseCommand<C
     'get-issues': new TextGetIssues()
   },
   slack: {
-    'e2e-notification': new SlackE2ENotification()
+    'e2e-notification': new SlackE2ENotification(),
+    alert: new SlackAlert()
   }
 };
 
