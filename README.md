@@ -1,15 +1,17 @@
-# DevOps Agent ![Marketplace](https://img.shields.i###
+# DevOps Agent ![Marketplace](https://img.shields.io/badge/Marketplace-GitHub%20Actions-blue?logo=github) ![License](https://img.shields.io/github/license/flexydox/fxdx-devops-agent)
 
 A powerful GitHub Action for automating your development workflow with Jira, GitHub, and versioning operations. Supports advanced PR validation, Jira issue management, and more.
 
-### Environment Variables - Github related
+## Environment Variables
+
+### GitHub Related
 
 - `GITHUB_REPOSITORY`: The repository in the format `owner/repo` (automatically set by GitHub Actions).
 - `GITHUB_TOKEN`: The token used for GitHub API authentication (automatically set by GitHub Actions).
   - **Required for**: All GitHub commands (`github` command group)
   - **Default**: Automatically provided by GitHub Actions runtime
 
-### Environment Variables - Jira related
+### Jira Related
 
 - `ATLASSIAN_API_BASE_URL`: Base URL for Atlassian API (e.g., `https://your-domain.atlassian.net`).
   - **Required for**: All Jira commands (`jira` command group)
@@ -19,13 +21,13 @@ A powerful GitHub Action for automating your development workflow with Jira, Git
   - **Required for**: All Jira commands (`jira` command group)
   - **How to get**: Generate from your Atlassian account settings
 
-### Environment Variables - AI related
+### AI Related
 
 - `OPENAI_API_KEY`: OpenAI API key for AI-powered issue validation.
   - **Required for**: `github pr-commenter` command when using AI validation
-  - **Optional**: Not needed for basic GitHub or Jira operationsketplace-GitHub%20Actions-blue?logo=github) ![License](https://img.shields.io/github/license/flexydox/fxdx-devops-agent)
+  - **Optional**: Not needed for basic GitHub or Jira operations
 
-### Environment Variables - Slack related
+### Slack Related
 
 - `SLACK_BOT_TOKEN`: Slack bot token for sending notifications.
   - **Required for**: `slack` command group
@@ -35,80 +37,87 @@ A powerful GitHub Action for automating your development workflow with Jira, Git
 
 ## Table of Contents
 
-- [DevOps Agent !\[Marketplace\](https://img.shields.i###](#devops-agent-marketplacehttpsimgshieldsi)
-  - [Environment Variables - Github related](#environment-variables---github-related)
-  - [Environment Variables - Jira related](#environment-variables---jira-related)
-  - [Environment Variables - AI related](#environment-variables---ai-related)
-  - [Environment Variables - Slack related](#environment-variables---slack-related)
-  - [Table of Contents](#table-of-contents)
-  - [Features](#features)
-  - [Commands \& Arguments](#commands--arguments)
-    - [~Common Arguments](#common-arguments)
-    - [Environment Variables - Github related](#environment-variables---github-related-1)
-    - [Environment Variables - Jira related](#environment-variables---jira-related-1)
-    - [Environment Variables - AI related](#environment-variables---ai-related-1)
-    - [Jira Commands](#jira-commands)
-    - [GitHub Commands](#github-commands)
-    - [Version Commands](#version-commands)
-    - [Text Commands](#text-commands)
-    - [Slack Commands](#slack-commands)
-  - [Usage](#usage)
-  - [Examples](#examples)
-    - [Add a comment to Jira issues](#add-a-comment-to-jira-issues)
-    - [Update Jira status for issues](#update-jira-status-for-issues)
-    - [Validate PR with Jira issues and comment](#validate-pr-with-jira-issues-and-comment)
-    - [Get PR diff data](#get-pr-diff-data)
-    - [Parse a version string](#parse-a-version-string)
-    - [Create a date-based version](#create-a-date-based-version)
-    - [Extract version from file](#extract-version-from-file)
-    - [Update version in file](#update-version-in-file)
-    - [Extract version from nested YAML attribute](#extract-version-from-nested-yaml-attribute)
-    - [Extract issues from text](#extract-issues-from-text)
-    - [Get commit information](#get-commit-information)
-    - [Assign Jira issues to a release](#assign-jira-issues-to-a-release)
-    - [Update Jira issue labels](#update-jira-issue-labels)
-    - [Complete workflow example](#complete-workflow-example)
-    - [Send Slack notification for E2E test results](#send-slack-notification-for-e2e-test-results)
-  - [Development](#development)
-  - [License](#license)
+- [Features](#features)
+- [Commands](#commands)
+- [Subcommands](#subcommands)
+- [Arguments](#arguments)
+- [Usage](#usage)
+- [Examples](#examples)
+- [Development](#development)
+- [License](#license)
 
 ---
 
 ## Features
 
-- Validate and synchronize Jira issues on PRs
-- Update Jira issue status, labels, comments, and releases from workflows
-- Parse semantic versions, extract/update versions from files, and create date-based versions
-- Extract commit data from PRs and manage version file updates
-- Send Slack notifications for E2E test results
-- Modular command/subcommand structure for extensibility
+- 🎯 Validate and synchronize Jira issues on PRs
+- 🔄 Update Jira issue status, labels, comments, and releases from workflows
+- 📦 Parse semantic versions, extract/update versions from files, and create date-based versions
+- 📊 Extract commit data from PRs and manage version file updates
+- 💬 Send Slack notifications for E2E test results
+- 🔧 Modular command/subcommand structure for extensibility
 
 ---
 
-## Commands & Arguments
+## Commands
 
-### ~Common Arguments
+The DevOps Agent supports the following top-level commands:
 
-- `applyToParent` (bool, optional): Apply operation to parent issues, if actual issue is a subtask.
-- `applyToSubtasks` (bool, optional): Apply operation to subtask issue types, if actual issue is a subtask.
-- `failWhenNoIssues` (bool, optional): Fail the action if no issues are found.
-- issues (string): Comma-separated list of Jira issues (e.g., "PROJ-1,PROJ-2").
-- prTitleRegex (string, optional): Regex to match PR titles for issue validation.
+- **`jira`** - Jira issue management operations
+- **`github`** - GitHub repository and PR operations
+- **`version`** - Version parsing, extraction, and management
+- **`text`** - Text processing and pattern extraction
+- **`slack`** - Slack notification and messaging
 
-### Environment Variables - Github related
+---
 
-- `GITHUB_REPOSITORY`: The repository in the format `owner/repo` (automatically set by GitHub Actions).
-- `GITHUB_TOKEN`: The token used for GitHub API authentication (automatically set by GitHub Actions).
+## Subcommands
 
-### Environment Variables - Jira related
+### Jira Subcommands
 
-- `ATLASSIAN_API_BASE_URL`: Base URL for Atlassian API (default: `https://mycompany.atlassian.com`).
-- `ATLASSIAN_API_USERNAME`: Username for Atlassian API authentication (optional).
-- `ATLASSIAN_API_TOKEN`: Token for Atlassian API authentication (optional).
+- `add-comment` - Add comment to Jira issues
+- `update-status` - Update Jira issue status with optional comment
+- `assign-to-release` - Assign Jira issues to a release version
+- `update-labels` - Add/remove labels on Jira issues
 
-### Environment Variables - AI related
+### GitHub Subcommands
 
-- `OPENAI_API_KEY`: OpenAI API key for AI-related operations (optional).
+- `pr-commenter` - Validate Jira issues on a PR and synchronize comments
+- `get-diff-data` - Extract commit messages, files, and referenced issues from PR
+- `commit-info` - Get detailed information about a specific commit
+
+### Version Subcommands
+
+- `parse` - Parse and output semantic version components
+- `create-date-version` - Create a date-based version string
+- `extract` - Extract version from JSON/YAML files
+- `update` - Update version in JSON/YAML files
+
+### Text Subcommands
+
+- `get-issues` - Extract issue references from text using regex
+
+### Slack Subcommands
+
+- `e2e-notification` - Send formatted E2E test results to Slack channels
+
+---
+
+## Arguments
+
+### Common Arguments
+
+The following arguments are commonly used across multiple commands:
+
+- `applyToParent` (boolean, optional) - Apply operation to parent issues, if actual issue is a subtask
+- `applyToSubtasks` (boolean, optional) - Apply operation to subtask issue types, if actual issue is a subtask
+- `failWhenNoIssues` (boolean, optional) - Fail the action if no issues are found
+- `issues` (string, required) - Comma-separated list of Jira issues (e.g., "PROJ-1,PROJ-2")
+- `prTitleRegex` (string, optional) - Regex pattern to match PR titles for issue validation
+
+### Command-Specific Arguments
+
+Detailed argument specifications for each command are provided in the tables below.
 
 ### Jira Commands
 
@@ -161,17 +170,17 @@ steps:
 
   - name: Run DevOps Agent
     uses: flexydox/fxdx-devops-agent@v1
-    with:
-      command: <command>
-      subcommand: <subcommand>
-      args: '{ "key": "value", ... }' # JSON string with arguments for the operation
+  with:
+    command: <command>
+    subcommand: <subcommand>
+    args: '{ "key": "value", ... }' # JSON string with arguments for the operation
 ```
 
-- **command**: One of `jira`, `github`, `version`, `text`, `slack`
-- **subcommand**: See table above
-- **args**: JSON string with arguments for the command/subcommand
+**Parameters:**
 
----
+- **command** (string, required): One of `jira`, `github`, `version`, `text`, `slack`
+- **subcommand** (string, required): See command tables above for available subcommands
+- **args** (string, required): JSON string with arguments for the command/subcommand---
 
 ## Examples
 
@@ -181,6 +190,7 @@ steps:
 > - `ATLASSIAN_API_USERNAME`: Your Atlassian username or email
 > - `ATLASSIAN_API_TOKEN`: Your Atlassian API token (generate from account settings)
 > - `OPENAI_API_KEY`: Your OpenAI API key (only if using AI features)
+> - `SLACK_BOT_TOKEN`: Your Slack bot token (only if using Slack features)
 
 ### Add a comment to Jira issues
 
@@ -480,6 +490,8 @@ jobs:
 ```yaml
 - name: Send E2E test notification to Slack
   uses: flexydox/fxdx-devops-agent@v1
+  env:
+    SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
   with:
     command: slack
     subcommand: e2e-notification
@@ -487,6 +499,9 @@ jobs:
       "testName": "E2E Integration Tests",
       "testResult": "pass",
       "totalTests": 25,
+      "botToken": "${{ secrets.SLACK_BOT_TOKEN }}",
+      "channel": "qa-notifications",
+      "alertChannel": "qa-alerts",
       "testResultUrl": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}",
       "dockerImage": "my-app:${{ github.sha }}",
       "testFramework": "Playwright",
@@ -499,9 +514,7 @@ jobs:
       "buildNumber": "${{ github.run_number }}",
       "sourceUrl": "https://github.com/${{ github.repository }}/commit/${{ github.sha }}",
       "slackChannel": "qa-notifications",
-      "slackAlertChannel": "qa-alerts",
-      "channel": "qa-notifications",
-      "alertChannel": "qa-alerts"
+      "slackAlertChannel": "qa-alerts"
     }'
 ```
 
@@ -512,7 +525,7 @@ jobs:
 - Supports sending to specific channels based on test results:
   - Success: Uses the `channel` parameter
   - Failure: Uses the `alertChannel` parameter (if provided), otherwise falls back to the main channel
-- `slackChannel` and `slackAlertChannel` are display-only fields shown in the notification message
+- Bot token should be stored as a repository secret
 
 ---
 
