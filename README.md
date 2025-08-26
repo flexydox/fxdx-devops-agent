@@ -2,6 +2,38 @@
 
 A powerful GitHub Action for automating your development workflow with Jira, GitHub, and versioning operations. Supports advanced PR validation, Jira issue management, and more.
 
+## Overview
+
+The DevOps Agent provides the following commands with their respective subcommands:
+
+### `jira` - Jira Issue Management
+
+- `add-comment` - Add comment to Jira issues
+- `update-status` - Update Jira issue status with optional comment
+- `assign-to-release` - Assign Jira issues to a release version
+- `update-labels` - Add/remove labels on Jira issues
+
+### `github` - GitHub Operations
+
+- `pr-commenter` - Validate Jira issues on a PR and synchronize comments
+- `get-diff-data` - Extract commit messages, files, and referenced issues from PR
+- `commit-info` - Get detailed information about a specific commit
+
+### `version` - Version Management
+
+- `parse` - Parse and output semantic version components
+- `create-date-version` - Create a date-based version string
+- `extract` - Extract version from JSON/YAML files
+- `update` - Update version in JSON/YAML files
+
+### `text` - Text Processing
+
+- `get-issues` - Extract issue references from text using regex
+
+### `slack` - Slack Notifications
+
+- `e2e-notification` - Send formatted E2E test results to Slack channels
+
 ## Environment Variables
 
 ### GitHub Related
@@ -38,9 +70,8 @@ A powerful GitHub Action for automating your development workflow with Jira, Git
 ## Table of Contents
 
 - [Features](#features)
+- [Overview](#overview)
 - [Commands](#commands)
-- [Subcommands](#subcommands)
-- [Arguments](#arguments)
 - [Usage](#usage)
 - [Examples](#examples)
 - [Development](#development)
@@ -61,101 +92,488 @@ A powerful GitHub Action for automating your development workflow with Jira, Git
 
 ## Commands
 
-The DevOps Agent supports the following top-level commands:
-
-- **`jira`** - Jira issue management operations
-- **`github`** - GitHub repository and PR operations
-- **`version`** - Version parsing, extraction, and management
-- **`text`** - Text processing and pattern extraction
-- **`slack`** - Slack notification and messaging
-
----
-
-## Subcommands
-
-### Jira Subcommands
-
-- `add-comment` - Add comment to Jira issues
-- `update-status` - Update Jira issue status with optional comment
-- `assign-to-release` - Assign Jira issues to a release version
-- `update-labels` - Add/remove labels on Jira issues
-
-### GitHub Subcommands
-
-- `pr-commenter` - Validate Jira issues on a PR and synchronize comments
-- `get-diff-data` - Extract commit messages, files, and referenced issues from PR
-- `commit-info` - Get detailed information about a specific commit
-
-### Version Subcommands
-
-- `parse` - Parse and output semantic version components
-- `create-date-version` - Create a date-based version string
-- `extract` - Extract version from JSON/YAML files
-- `update` - Update version in JSON/YAML files
-
-### Text Subcommands
-
-- `get-issues` - Extract issue references from text using regex
-
-### Slack Subcommands
-
-- `e2e-notification` - Send formatted E2E test results to Slack channels
-
----
-
-## Arguments
-
 ### Common Arguments
 
 The following arguments are commonly used across multiple commands:
 
-- `applyToParent` (boolean, optional) - Apply operation to parent issues, if actual issue is a subtask
-- `applyToSubtasks` (boolean, optional) - Apply operation to subtask issue types, if actual issue is a subtask
-- `failWhenNoIssues` (boolean, optional) - Fail the action if no issues are found
-- `issues` (string, required) - Comma-separated list of Jira issues (e.g., "PROJ-1,PROJ-2")
-- `prTitleRegex` (string, optional) - Regex pattern to match PR titles for issue validation
+- `applyToParent` (boolean, optional)
+  - Apply operation to parent issues, if actual issue is a subtask
 
-### Command-Specific Arguments
+- `applyToSubtasks` (boolean, optional)
+  - Apply operation to subtask issue types, if actual issue is a subtask
 
-Detailed argument specifications for each command are provided in the tables below.
+- `failWhenNoIssues` (boolean, optional)
+  - Fail the action if no issues are found
 
-### Jira Commands
+- `issues` (string, required)
+  - Comma-separated list of Jira issues (e.g., "PROJ-1,PROJ-2")
 
-| Subcommand          | Arguments                                                                                                                                      | Description                                           | Example                                                                                                     | Outputs |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ------- |
-| `add-comment`       | `issues` (string), `comment` (string), `applyToParent` (bool, optional), `applyToSubtasks` (bool, optional)                                    | Add comment to Jira issues.                           | `args: '{ "issues": "PROJ-1,PROJ-2", "comment": "Deployed to staging." }'`                                  | None    |
-| `update-status`     | `issues` (string), `targetStatus` (string), `comment` (string, optional), `applyToParent` (bool, optional), `applyToSubtasks` (bool, optional) | Update Jira issue status and add an optional comment. | `args: '{ "issues": "PROJ-123", "targetStatus": "Done", "comment": "Automatically transitioned via CI." }'` | None    |
-| `assign-to-release` | `issues` (string), `version` (string), `applyToParent` (bool, optional), `applyToSubtasks` (bool, optional)                                    | Assign Jira issues to a release version.              | `args: '{ "issues": "PROJ-1,PROJ-2", "version": "1.0.0" }'`                                                 | None    |
-| `update-labels`     | `issues` (string), `labelsToAdd` (string), `labelsToRemove` (string), `applyToParent` (bool, optional), `applyToSubtasks` (bool, optional)     | Add/remove labels on Jira issues.                     | `args: '{ "issues": "PROJ-1", "labelsToAdd": "qa,prod", "labelsToRemove": "wip" }'`                         | None    |
+- `prTitleRegex` (string, optional)
+  - Regex pattern to match PR titles for issue validation
 
-### GitHub Commands
+## Jira Commands
 
-| Subcommand      | Arguments                                                                                                                                                                            | Description                                            | Example                                                                                                                        | Outputs                                                                                                                      |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| `pr-commenter`  | `issues` (string), `prNumber` (string), `prTitleRegex` (string, optional), `failWhenNoIssues` (bool, optional), `applyToParent` (bool, optional), `applyToSubtasks` (bool, optional) | Validate Jira issues on a PR and synchronize comments. | `args: '{ "issues": "PROJ-456", "prNumber": "${{ github.event.pull_request.number }}", "failWhenNoIssues": true }'`            | None                                                                                                                         |
-| `get-diff-data` | `prNumber` (string), `issuePattern` (string, optional), `dataSeparator` (string, optional)                                                                                           | Extract commit messages, files, and referenced issues. | `args: '{ "prNumber": "${{ github.event.pull_request.number }}", "issuePattern": "\\bFXDX-\\d+\\b", "dataSeparator": "\\n" }'` | `commit-messages`, `files`, `issues`                                                                                         |
-| `commit-info`   | `sha` (string), `repo` (string, optional)                                                                                                                                            | Get detailed information about a specific commit.      | `args: '{ "sha": "abc123def456", "repo": "owner/repo" }'`                                                                      | `message`, `author-name`, `author-email`, `author-date`, `committer-name`, `committer-email`, `committer-date`, `sha`, `url` |
+### `add-comment`
 
-### Version Commands
+Add comment to Jira issues with optional parent/subtask handling.
 
-| Subcommand            | Arguments                                                                                             | Description                                                                              | Example                                                                                        | Outputs                                                 |
-| --------------------- | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
-| `parse`               | `version` (string)                                                                                    | Parse and output the major, minor, patch, build, pre fields.                             | `args: '{ "version": "1.2.3-beta" }'`                                                          | `major`, `minor`, `patch`, `build`, `pre`               |
-| `create-date-version` | None                                                                                                  | Create a date-based version string with time-of-day code (format: YYMMDDXXX).            | `args: '{}'`                                                                                   | `version`, `timeOfDay`, `year`, `month`, `day`          |
-| `extract`             | `versionFile` (string), `versionAttribute` (string, optional, default: "version")                     | Extract and parse version from JSON/YAML files using dot notation for nested attributes. | `args: '{ "versionFile": "package.json", "versionAttribute": "version" }'`                     | `rawVersion`, `major`, `minor`, `patch`, `build`, `pre` |
-| `update`              | `version` (string), `versionFile` (string), `versionAttribute` (string, optional, default: "version") | Update version in JSON/YAML files. Supports nested attributes with dot notation.         | `args: '{ "version": "1.2.3", "versionFile": "package.json", "versionAttribute": "version" }'` | None                                                    |
+**Arguments:**
 
-### Text Commands
+- `issues` (string, required)
+  - Comma-separated list of Jira issue keys
+- `comment` (string, required)
+  - Comment text to add to the issues
+- `applyToParent` (boolean, optional)
+  - Apply operation to parent issues
+- `applyToSubtasks` (boolean, optional)
+  - Apply operation to subtask issues
 
-| Subcommand   | Arguments                                                                     | Description                                                    | Example                                                                          | Outputs  |
-| ------------ | ----------------------------------------------------------------------------- | -------------------------------------------------------------- | -------------------------------------------------------------------------------- | -------- |
-| `get-issues` | `text` (string), `issuePattern` (string), `failWhenNoIssues` (bool, optional) | Extract issue references from text using a regular expression. | `args: '{ "text": "Fix PROJ-123 and PROJ-456", "issuePattern": "[A-Z]+-\\d+" }'` | `issues` |
+**Usage Example:**
 
-### Slack Commands
+```yaml
+- name: Add Jira comment
+  uses: flexydox/fxdx-devops-agent@v1
+  with:
+    command: jira
+    subcommand: add-comment
+    args: |
+      {
+        "issues": "PROJ-1,PROJ-2",
+        "comment": "Deployed to staging."
+      }
+```
 
-| Subcommand         | Arguments                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | Description                                                                                                              | Example                                                                                                                                                                                 | Outputs                            |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
-| `e2e-notification` | `testName` (string), `testResult` (string), `totalTests` (number), `botToken` (string), `channel` (string), `alertChannel` (string, optional), `testResultUrl` (string, optional), `dockerImage` (string, optional), `testFramework` (string, optional), `branch` (string, optional), `commitMessage` (string, optional), `author` (string, optional), `repository` (string, optional), `version` (string, optional), `buildUrl` (string, optional), `buildNumber` (string, optional), `sourceUrl` (string, optional), `slackChannel` (string, optional), `slackAlertChannel` (string, optional) | Send formatted E2E test results to a Slack channel via Slack App authentication. Supports different channels for alerts. | `args: '{ "testName": "E2E Tests", "testResult": "pass", "totalTests": 25, "botToken": "${{ secrets.SLACK_BOT_TOKEN }}", "channel": "qa-notifications", "alertChannel": "qa-alerts" }'` | `notification-sent`, `test-result` |
+### `update-status`
+
+Update Jira issue status and add an optional comment.
+
+**Arguments:**
+
+- `issues` (string, required)
+  - Comma-separated list of Jira issue keys
+- `targetStatus` (string, required)
+  - Target status to transition issues to
+- `comment` (string, optional)
+  - Optional comment to add during transition
+- `applyToParent` (boolean, optional)
+  - Apply operation to parent issues
+- `applyToSubtasks` (boolean, optional)
+  - Apply operation to subtask issues
+
+**Usage Example:**
+
+```yaml
+- name: Update Jira status
+  uses: flexydox/fxdx-devops-agent@v1
+  with:
+    command: jira
+    subcommand: update-status
+    args: |
+      {
+        "issues": "PROJ-123",
+        "targetStatus": "Done",
+        "comment": "Automatically transitioned via CI."
+      }
+```
+
+### `assign-to-release`
+
+Assign Jira issues to a release version.
+
+**Arguments:**
+
+- `issues` (string, required)
+  - Comma-separated list of Jira issue keys
+- `version` (string, required)
+  - Release version to assign issues to
+- `applyToParent` (boolean, optional)
+  - Apply operation to parent issues
+- `applyToSubtasks` (boolean, optional)
+  - Apply operation to subtask issues
+
+**Usage Example:**
+
+```yaml
+- name: Assign to release
+  uses: flexydox/fxdx-devops-agent@v1
+  with:
+    command: jira
+    subcommand: assign-to-release
+    args: |
+      {
+        "issues": "PROJ-1,PROJ-2",
+        "version": "1.0.0"
+      }
+```
+
+### `update-labels`
+
+Add/remove labels on Jira issues.
+
+**Arguments:**
+
+- `issues` (string, required)
+  - Comma-separated list of Jira issue keys
+- `labelsToAdd` (string, optional)
+  - Comma-separated list of labels to add
+- `labelsToRemove` (string, optional)
+  - Comma-separated list of labels to remove
+- `applyToParent` (boolean, optional)
+  - Apply operation to parent issues
+- `applyToSubtasks` (boolean, optional)
+  - Apply operation to subtask issues
+
+**Usage Example:**
+
+```yaml
+- name: Update issue labels
+  uses: flexydox/fxdx-devops-agent@v1
+  with:
+    command: jira
+    subcommand: update-labels
+    args: |
+      {
+        "issues": "PROJ-1",
+        "labelsToAdd": "qa,prod",
+        "labelsToRemove": "wip"
+      }
+```
+
+## GitHub Commands
+
+### `pr-commenter`
+
+Validate Jira issues on a PR and synchronize comments.
+
+**Arguments:**
+
+- `issues` (string, required)
+  - Comma-separated list of Jira issue keys
+- `prNumber` (string, required)
+  - Pull request number
+- `prTitleRegex` (string, optional)
+  - Regex pattern to match PR titles
+- `failWhenNoIssues` (boolean, optional)
+  - Fail the action if no issues are found
+- `applyToParent` (boolean, optional)
+  - Apply operation to parent issues
+- `applyToSubtasks` (boolean, optional)
+  - Apply operation to subtask issues
+
+**Usage Example:**
+
+```yaml
+- name: PR Jira Validator
+  uses: flexydox/fxdx-devops-agent@v1
+  with:
+    command: github
+    subcommand: pr-commenter
+    args: |
+      {
+        "issues": "PROJ-456",
+        "prNumber": "${{ github.event.pull_request.number }}",
+        "failWhenNoIssues": true
+      }
+```
+
+### `get-diff-data`
+
+Extract commit messages, files, and referenced issues from PR.
+
+**Arguments:**
+
+- `prNumber` (string, required)
+  - Pull request number
+- `issuePattern` (string, optional)
+  - Regex pattern to extract issue references
+- `dataSeparator` (string, optional)
+  - Separator for output data
+
+**Outputs:**
+
+- `commit-messages` - Extracted commit messages
+- `files` - Changed files
+- `issues` - Found issue references
+
+**Usage Example:**
+
+```yaml
+- name: Get PR Diff Data
+  uses: flexydox/fxdx-devops-agent@v1
+  with:
+    command: github
+    subcommand: get-diff-data
+    args: |
+      {
+        "prNumber": "${{ github.event.pull_request.number }}",
+        "issuePattern": "\\bFXDX-\\d+\\b",
+        "dataSeparator": "\\n"
+      }
+```
+
+### `commit-info`
+
+Get detailed information about a specific commit.
+
+**Arguments:**
+
+- `sha` (string, required)
+  - Git commit SHA
+- `repo` (string, optional)
+  - Repository in format "owner/repo"
+
+**Outputs:**
+
+- `message` - Commit message
+- `author-name` - Author name
+- `author-email` - Author email
+- `author-date` - Author date
+- `committer-name` - Committer name
+- `committer-email` - Committer email
+- `committer-date` - Committer date
+- `sha` - Commit SHA
+- `url` - Commit URL
+
+**Usage Example:**
+
+```yaml
+- name: Get commit info
+  uses: flexydox/fxdx-devops-agent@v1
+  with:
+    command: github
+    subcommand: commit-info
+    args: |
+      {
+        "sha": "abc123def456",
+        "repo": "owner/repo"
+      }
+```
+
+## Version Commands
+
+### `parse`
+
+Parse and output semantic version components.
+
+**Arguments:**
+
+- `version` (string, required)
+  - Version string to parse
+
+**Outputs:**
+
+- `major` - Major version number
+- `minor` - Minor version number
+- `patch` - Patch version number
+- `build` - Build metadata
+- `pre` - Pre-release identifier
+
+**Usage Example:**
+
+```yaml
+- name: Parse version
+  uses: flexydox/fxdx-devops-agent@v1
+  with:
+    command: version
+    subcommand: parse
+    args: |
+      {
+        "version": "1.2.3-beta"
+      }
+```
+
+### `create-date-version`
+
+Create a date-based version string with time-of-day code (format: YYMMDDXXX).
+
+**Arguments:**
+
+- No arguments required
+
+**Outputs:**
+
+- `version` - Generated date version
+- `timeOfDay` - Time of day code
+- `year` - Year component
+- `month` - Month component
+- `day` - Day component
+
+**Usage Example:**
+
+```yaml
+- name: Create date version
+  uses: flexydox/fxdx-devops-agent@v1
+  with:
+    command: version
+    subcommand: create-date-version
+    args: |
+      {}
+```
+
+### `extract`
+
+Extract and parse version from JSON/YAML files using dot notation for nested attributes.
+
+**Arguments:**
+
+- `versionFile` (string, required)
+  - Path to file containing version
+- `versionAttribute` (string, optional, default: "version")
+  - Attribute path using dot notation
+
+**Outputs:**
+
+- `rawVersion` - Raw version string
+- `major` - Major version number
+- `minor` - Minor version number
+- `patch` - Patch version number
+- `build` - Build metadata
+- `pre` - Pre-release identifier
+
+**Usage Example:**
+
+```yaml
+- name: Extract version from package.json
+  uses: flexydox/fxdx-devops-agent@v1
+  with:
+    command: version
+    subcommand: extract
+    args: |
+      {
+        "versionFile": "package.json",
+        "versionAttribute": "version"
+      }
+```
+
+### `update`
+
+Update version in JSON/YAML files. Supports nested attributes with dot notation.
+
+**Arguments:**
+
+- `version` (string, required)
+  - New version to set
+- `versionFile` (string, required)
+  - Path to file to update
+- `versionAttribute` (string, optional, default: "version")
+  - Attribute path using dot notation
+
+**Usage Example:**
+
+```yaml
+- name: Update version in package.json
+  uses: flexydox/fxdx-devops-agent@v1
+  with:
+    command: version
+    subcommand: update
+    args: |
+      {
+        "version": "1.2.3",
+        "versionFile": "package.json",
+        "versionAttribute": "version"
+      }
+```
+
+## Text Commands
+
+### `get-issues`
+
+Extract issue references from text using a regular expression.
+
+**Arguments:**
+
+- `text` (string, required)
+  - Text to extract issues from
+- `issuePattern` (string, required)
+  - Regex pattern to match issue references
+- `failWhenNoIssues` (boolean, optional)
+  - Fail the action if no issues are found
+
+**Outputs:**
+
+- `issues` - Found issue references
+
+**Usage Example:**
+
+```yaml
+- name: Extract issues from text
+  uses: flexydox/fxdx-devops-agent@v1
+  with:
+    command: text
+    subcommand: get-issues
+    args: |
+      {
+        "text": "Fix PROJ-123 and PROJ-456",
+        "issuePattern": "[A-Z]+-\\d+"
+      }
+```
+
+## Slack Commands
+
+### `e2e-notification`
+
+Send formatted E2E test results to a Slack channel via Slack App authentication. Supports different channels for alerts.
+
+**Arguments:**
+
+- `testName` (string, required)
+  - Name of the test suite
+- `testResult` (string, required)
+  - Test result: "pass" or "fail"
+- `totalTests` (number, required)
+  - Total number of tests executed
+- `botToken` (string, required)
+  - Slack bot token
+- `channel` (string, required)
+  - Slack channel for success notifications
+- `alertChannel` (string, optional)
+  - Slack channel for failure notifications
+- `testResultUrl` (string, optional)
+  - URL to test results
+- `dockerImage` (string, optional)
+  - Docker image used for testing
+- `testFramework` (string, optional)
+  - Testing framework name
+- `branch` (string, optional)
+  - Git branch name
+- `commitMessage` (string, optional)
+  - Git commit message
+- `author` (string, optional)
+  - Commit author
+- `repository` (string, optional)
+  - Repository name
+- `version` (string, optional)
+  - Application version
+- `buildUrl` (string, optional)
+  - Build URL
+- `buildNumber` (string, optional)
+  - Build number
+- `sourceUrl` (string, optional)
+  - Source code URL
+
+**Outputs:**
+
+- `notification-sent` - Whether notification was sent
+- `test-result` - Test result status
+
+**Usage Example:**
+
+```yaml
+- name: Send E2E notification
+  uses: flexydox/fxdx-devops-agent@v1
+  with:
+    command: slack
+    subcommand: e2e-notification
+    args: |
+      {
+        "testName": "E2E Tests",
+        "testResult": "pass",
+        "totalTests": 25,
+        "botToken": "${{ secrets.SLACK_BOT_TOKEN }}",
+        "channel": "qa-notifications",
+        "alertChannel": "qa-alerts"
+      }
+```
 
 ---
 
@@ -170,17 +588,22 @@ steps:
 
   - name: Run DevOps Agent
     uses: flexydox/fxdx-devops-agent@v1
-  with:
-    command: <command>
-    subcommand: <subcommand>
-    args: '{ "key": "value", ... }' # JSON string with arguments for the operation
+    with:
+      command: <command>
+      subcommand: <subcommand>
+      args: |
+        {
+          "key": "value"
+        }
 ```
 
 **Parameters:**
 
 - **command** (string, required): One of `jira`, `github`, `version`, `text`, `slack`
-- **subcommand** (string, required): See command tables above for available subcommands
-- **args** (string, required): JSON string with arguments for the command/subcommand---
+- **subcommand** (string, required): See command documentation above for available subcommands
+- **args** (string, required): JSON string with arguments for the command/subcommand
+
+---
 
 ## Examples
 
@@ -192,9 +615,14 @@ steps:
 > - `OPENAI_API_KEY`: Your OpenAI API key (only if using AI features)
 > - `SLACK_BOT_TOKEN`: Your Slack bot token (only if using Slack features)
 
-### Add a comment to Jira issues
+### Jira Command Examples
+
+#### Add Comment (`jira add-comment`)
+
+Add comments to Jira issues with optional parent/subtask handling:
 
 ```yaml
+# Basic comment addition
 - name: Add Jira comment
   uses: flexydox/fxdx-devops-agent@v1
   env:
@@ -204,12 +632,37 @@ steps:
   with:
     command: jira
     subcommand: add-comment
-    args: '{ "issues": "PROJ-1,PROJ-2", "comment": "Deployed to staging." }'
+    args: |
+      {
+        "issues": "PROJ-1,PROJ-2",
+        "comment": "Deployed to staging environment."
+      }
+
+# Comment with parent/subtask handling
+- name: Add comment to parent issues
+  uses: flexydox/fxdx-devops-agent@v1
+  env:
+    ATLASSIAN_API_BASE_URL: ${{ secrets.ATLASSIAN_API_BASE_URL }}
+    ATLASSIAN_API_USERNAME: ${{ secrets.ATLASSIAN_API_USERNAME }}
+    ATLASSIAN_API_TOKEN: ${{ secrets.ATLASSIAN_API_TOKEN }}
+  with:
+    command: jira
+    subcommand: add-comment
+    args: |
+      {
+        "issues": "PROJ-123",
+        "comment": "All subtasks completed successfully.",
+        "applyToParent": true,
+        "applyToSubtasks": false
+      }
 ```
 
-### Update Jira status for issues
+#### Update Status (`jira update-status`)
+
+Update Jira issue status with optional comments:
 
 ```yaml
+# Basic status update
 - name: Update Jira status
   uses: flexydox/fxdx-devops-agent@v1
   env:
@@ -219,12 +672,122 @@ steps:
   with:
     command: jira
     subcommand: update-status
-    args: '{ "issues": "PROJ-123", "targetStatus": "Done", "comment": "Automatically transitioned via CI." }'
+    args: |
+      {
+        "issues": "PROJ-123",
+        "targetStatus": "Done",
+        "comment": "Automatically transitioned via CI."
+      }
+
+# Status update with parent handling
+- name: Update status for parent and subtasks
+  uses: flexydox/fxdx-devops-agent@v1
+  env:
+    ATLASSIAN_API_BASE_URL: ${{ secrets.ATLASSIAN_API_BASE_URL }}
+    ATLASSIAN_API_USERNAME: ${{ secrets.ATLASSIAN_API_USERNAME }}
+    ATLASSIAN_API_TOKEN: ${{ secrets.ATLASSIAN_API_TOKEN }}
+  with:
+    command: jira
+    subcommand: update-status
+    args: |
+      {
+        "issues": "PROJ-456",
+        "targetStatus": "In Testing",
+        "comment": "Ready for QA testing",
+        "applyToParent": true,
+        "applyToSubtasks": true
+      }
 ```
 
-### Validate PR with Jira issues and comment
+#### Assign to Release (`jira assign-to-release`)
+
+Assign Jira issues to specific release versions:
 
 ```yaml
+# Basic release assignment
+- name: Assign to release
+  uses: flexydox/fxdx-devops-agent@v1
+  env:
+    ATLASSIAN_API_BASE_URL: ${{ secrets.ATLASSIAN_API_BASE_URL }}
+    ATLASSIAN_API_USERNAME: ${{ secrets.ATLASSIAN_API_USERNAME }}
+    ATLASSIAN_API_TOKEN: ${{ secrets.ATLASSIAN_API_TOKEN }}
+  with:
+    command: jira
+    subcommand: assign-to-release
+    args: |
+      {
+        "issues": "PROJ-1,PROJ-2",
+        "version": "v1.2.0"
+      }
+
+# Release assignment with dynamic version
+- name: Assign to dynamic release version
+  uses: flexydox/fxdx-devops-agent@v1
+  env:
+    ATLASSIAN_API_BASE_URL: ${{ secrets.ATLASSIAN_API_BASE_URL }}
+    ATLASSIAN_API_USERNAME: ${{ secrets.ATLASSIAN_API_USERNAME }}
+    ATLASSIAN_API_TOKEN: ${{ secrets.ATLASSIAN_API_TOKEN }}
+  with:
+    command: jira
+    subcommand: assign-to-release
+    args: |
+      {
+        "issues": "PROJ-789",
+        "version": "${{ github.ref_name }}",
+        "applyToParent": false,
+        "applyToSubtasks": true
+      }
+```
+
+#### Update Labels (`jira update-labels`)
+
+Add or remove labels from Jira issues:
+
+```yaml
+# Basic label update
+- name: Update issue labels
+  uses: flexydox/fxdx-devops-agent@v1
+  env:
+    ATLASSIAN_API_BASE_URL: ${{ secrets.ATLASSIAN_API_BASE_URL }}
+    ATLASSIAN_API_USERNAME: ${{ secrets.ATLASSIAN_API_USERNAME }}
+    ATLASSIAN_API_TOKEN: ${{ secrets.ATLASSIAN_API_TOKEN }}
+  with:
+    command: jira
+    subcommand: update-labels
+    args: |
+      {
+        "issues": "PROJ-123",
+        "labelsToAdd": "qa-approved,ready-for-prod",
+        "labelsToRemove": "in-progress,needs-review"
+      }
+
+# Environment-specific label management
+- name: Add production labels
+  uses: flexydox/fxdx-devops-agent@v1
+  env:
+    ATLASSIAN_API_BASE_URL: ${{ secrets.ATLASSIAN_API_BASE_URL }}
+    ATLASSIAN_API_USERNAME: ${{ secrets.ATLASSIAN_API_USERNAME }}
+    ATLASSIAN_API_TOKEN: ${{ secrets.ATLASSIAN_API_TOKEN }}
+  with:
+    command: jira
+    subcommand: update-labels
+    args: |
+      {
+        "issues": "PROJ-456,PROJ-789",
+        "labelsToAdd": "production,hotfix",
+        "labelsToRemove": "staging,dev",
+        "applyToParent": true
+      }
+```
+
+### GitHub Command Examples
+
+#### PR Commenter (`github pr-commenter`)
+
+Validate Jira issues on PRs and synchronize comments:
+
+```yaml
+# Basic PR validation
 - name: PR Jira Validator
   id: pr-jira-validator
   uses: flexydox/fxdx-devops-agent@v1
@@ -237,16 +800,45 @@ steps:
   with:
     command: github
     subcommand: pr-commenter
-    args: '{ "issues": "PROJ-456", "prNumber": "${{ github.event.pull_request.number }}", "failWhenNoIssues": true }'
-- name: Echo PR Jira Validator outputs
+    args: |
+      {
+        "issues": "PROJ-456",
+        "prNumber": "${{ github.event.pull_request.number }}",
+        "failWhenNoIssues": true
+      }
+
+# PR validation with regex pattern
+- name: Validate PR with title pattern
+  uses: flexydox/fxdx-devops-agent@v1
+  env:
+    ATLASSIAN_API_BASE_URL: ${{ secrets.ATLASSIAN_API_BASE_URL }}
+    ATLASSIAN_API_USERNAME: ${{ secrets.ATLASSIAN_API_USERNAME }}
+    ATLASSIAN_API_TOKEN: ${{ secrets.ATLASSIAN_API_TOKEN }}
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  with:
+    command: github
+    subcommand: pr-commenter
+    args: |
+      {
+        "issues": "PROJ-123,PROJ-456",
+        "prNumber": "${{ github.event.pull_request.number }}",
+        "prTitleRegex": "^(feat|fix|docs|style|refactor|test|chore):",
+        "failWhenNoIssues": false,
+        "applyToParent": true
+      }
+
+- name: Echo PR validation results
   run: |
     echo "Commented: ${{ steps.pr-jira-validator.outputs.commented }}"
     echo "Issues Found: ${{ steps.pr-jira-validator.outputs.issuesFound }}"
 ```
 
-### Get PR diff data
+#### Get Diff Data (`github get-diff-data`)
+
+Extract commit messages, files, and issues from PR:
 
 ```yaml
+# Basic PR diff extraction
 - name: Get PR Diff Data
   id: pr-diff
   uses: flexydox/fxdx-devops-agent@v1
@@ -255,130 +847,69 @@ steps:
   with:
     command: github
     subcommand: get-diff-data
-    args: '{ "prNumber": "${{ github.event.pull_request.number }}" }'
-- name: Echo PR Diff Data outputs
+    args: |
+      {
+        "prNumber": "${{ github.event.pull_request.number }}"
+      }
+
+# Advanced diff extraction with custom patterns
+- name: Extract PR data with custom issue pattern
+  id: pr-diff-advanced
+  uses: flexydox/fxdx-devops-agent@v1
+  env:
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  with:
+    command: github
+    subcommand: get-diff-data
+    args: |
+      {
+        "prNumber": "${{ github.event.pull_request.number }}",
+        "issuePattern": "\\b(PROJ|TASK|BUG)-\\d+\\b",
+        "dataSeparator": " | "
+      }
+
+- name: Echo PR diff data
   run: |
     echo "Commit Messages: ${{ steps.pr-diff.outputs.commit-messages }}"
-    echo "Files: ${{ steps.pr-diff.outputs.files }}"
-    echo "Issues: ${{ steps.pr-diff.outputs.issues }}"
+    echo "Files Changed: ${{ steps.pr-diff.outputs.files }}"
+    echo "Issues Found: ${{ steps.pr-diff.outputs.issues }}"
 ```
 
-### Parse a version string
+#### Commit Info (`github commit-info`)
+
+Get detailed information about specific commits:
 
 ```yaml
-- name: Parse version
-  id: parse-version
-  uses: flexydox/fxdx-devops-agent@v1
-  with:
-    command: version
-    subcommand: parse
-    args: '{ "version": "1.2.3-beta" }'
-- name: Echo version outputs
-  run: |
-    echo "Major: ${{ steps.parse-version.outputs.major }}"
-    echo "Minor: ${{ steps.parse-version.outputs.minor }}"
-    echo "Patch: ${{ steps.parse-version.outputs.patch }}"
-    echo "Build: ${{ steps.parse-version.outputs.build }}"
-    echo "Pre-release: ${{ steps.parse-version.outputs.pre }}"
-```
-
-### Create a date-based version
-
-```yaml
-- name: Create date version
-  id: create-date-version
-  uses: flexydox/fxdx-devops-agent@v1
-  with:
-    command: version
-    subcommand: create-date-version
-    args: '{}'
-- name: Echo date version outputs
-  run: |
-    echo "Date Version: ${{ steps.create-date-version.outputs.version }}"
-    echo "Time of Day: ${{ steps.create-date-version.outputs.timeOfDay }}"
-    echo "Year: ${{ steps.create-date-version.outputs.year }}"
-    echo "Month: ${{ steps.create-date-version.outputs.month }}"
-    echo "Day: ${{ steps.create-date-version.outputs.day }}"
-```
-
-### Extract version from file
-
-```yaml
-- name: Extract version from package.json
-  id: extract-version
-  uses: flexydox/fxdx-devops-agent@v1
-  with:
-    command: version
-    subcommand: extract
-    args: '{ "versionFile": "package.json", "versionAttribute": "version" }'
-- name: Echo extracted version outputs
-  run: |
-    echo "Raw Version: ${{ steps.extract-version.outputs.rawVersion }}"
-    echo "Major: ${{ steps.extract-version.outputs.major }}"
-    echo "Minor: ${{ steps.extract-version.outputs.minor }}"
-    echo "Patch: ${{ steps.extract-version.outputs.patch }}"
-    echo "Build: ${{ steps.extract-version.outputs.build }}"
-    echo "Pre-release: ${{ steps.extract-version.outputs.pre }}"
-```
-
-### Update version in file
-
-```yaml
-- name: Update version in package.json
-  uses: flexydox/fxdx-devops-agent@v1
-  with:
-    command: version
-    subcommand: update
-    args: '{ "version": "1.2.4", "versionFile": "package.json", "versionAttribute": "version" }'
-```
-
-### Extract version from nested YAML attribute
-
-```yaml
-- name: Extract version from helm chart
-  id: extract-helm-version
-  uses: flexydox/fxdx-devops-agent@v1
-  with:
-    command: version
-    subcommand: extract
-    args: '{ "versionFile": "Chart.yaml", "versionAttribute": "appVersion" }'
-- name: Update version in values.yaml
-  uses: flexydox/fxdx-devops-agent@v1
-  with:
-    command: version
-    subcommand: update
-    args: '{ "version": "${{ steps.extract-helm-version.outputs.rawVersion }}", "versionFile": "values.yaml", "versionAttribute": "image.tag" }'
-```
-
-### Extract issues from text
-
-```yaml
-- name: Extract issues from text
-  id: extract-issues
-  uses: flexydox/fxdx-devops-agent@v1
-  with:
-    command: text
-    subcommand: get-issues
-    args: '{ "text": "Fixed PROJ-123 and resolved PROJ-456 issues", "issuePattern": "[A-Z]+-\\d+", "failWhenNoIssues": false }'
-- name: Echo extracted issues
-  run: |
-    echo "Found issues: ${{ steps.extract-issues.outputs.issues }}"
-```
-
-### Get commit information
-
-```yaml
+# Get current commit info
 - name: Get commit info
   id: commit-info
   uses: flexydox/fxdx-devops-agent@v1
   env:
     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    GITHUB_REPOSITORY: ${{ github.repository }} # Optional, defaults to current repo
   with:
     command: github
     subcommand: commit-info
-    args: '{ "sha": "${{ github.sha }}" }'
-- name: Echo commit outputs
+    args: |
+      {
+        "sha": "${{ github.sha }}"
+      }
+
+# Get commit info from different repository
+- name: Get external commit info
+  id: external-commit
+  uses: flexydox/fxdx-devops-agent@v1
+  env:
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  with:
+    command: github
+    subcommand: commit-info
+    args: |
+      {
+        "sha": "abc123def456",
+        "repo": "owner/repository-name"
+      }
+
+- name: Echo commit information
   run: |
     echo "Message: ${{ steps.commit-info.outputs.message }}"
     echo "Author: ${{ steps.commit-info.outputs.author-name }} <${{ steps.commit-info.outputs.author-email }}>"
@@ -389,45 +920,308 @@ steps:
     echo "URL: ${{ steps.commit-info.outputs.url }}"
 ```
 
-### Assign Jira issues to a release
+## Version Command Examples
+
+#### Parse Version (`version parse`)
+
+Parse semantic version strings:
 
 ```yaml
-- name: Assign to release
+# Basic version parsing
+- name: Parse version
   uses: flexydox/fxdx-devops-agent@v1
-  env:
-    ATLASSIAN_API_BASE_URL: ${{ secrets.ATLASSIAN_API_BASE_URL }}
-    ATLASSIAN_API_USERNAME: ${{ secrets.ATLASSIAN_API_USERNAME }}
-    ATLASSIAN_API_TOKEN: ${{ secrets.ATLASSIAN_API_TOKEN }}
   with:
-    command: jira
-    subcommand: assign-to-release
-    args: '{ "issues": "PROJ-1,PROJ-2", "version": "v1.2.0" }'
+    command: version
+    subcommand: parse
+    args: |
+      {
+        "version": "1.2.3-beta"
+      }
+
+# Parse complex version with build metadata
+- name: Parse complex version
+  uses: flexydox/fxdx-devops-agent@v1
+  with:
+    command: version
+    subcommand: parse
+    args: |
+      {
+        "version": "2.1.0-rc.1+build.123"
+      }
+
+- name: Echo version components
+  run: |
+    echo "Major: ${{ steps.parse-version.outputs.major }}"
+    echo "Minor: ${{ steps.parse-version.outputs.minor }}"
+    echo "Patch: ${{ steps.parse-version.outputs.patch }}"
+    echo "Build: ${{ steps.parse-version.outputs.build }}"
+    echo "Pre-release: ${{ steps.parse-version.outputs.pre }}"
 ```
 
-### Update Jira issue labels
+#### Create Date Version (`version create-date-version`)
+
+Generate date-based version strings:
 
 ```yaml
-- name: Update issue labels
+# Create date-based version
+- name: Create date version
   uses: flexydox/fxdx-devops-agent@v1
-  env:
-    ATLASSIAN_API_BASE_URL: ${{ secrets.ATLASSIAN_API_BASE_URL }}
-    ATLASSIAN_API_USERNAME: ${{ secrets.ATLASSIAN_API_USERNAME }}
-    ATLASSIAN_API_TOKEN: ${{ secrets.ATLASSIAN_API_TOKEN }}
   with:
-    command: jira
-    subcommand: update-labels
-    args: '{ "issues": "PROJ-123", "labelsToAdd": "qa-approved,ready-for-prod", "labelsToRemove": "in-progress,needs-review" }'
+    command: version
+    subcommand: create-date-version
+    args: |
+      {}
+
+- name: Use date version in deployment
+  run: |
+    echo "Generated Version: ${{ steps.create-date-version.outputs.version }}"
+    echo "Time of Day Code: ${{ steps.create-date-version.outputs.timeOfDay }}"
+    echo "Year: ${{ steps.create-date-version.outputs.year }}"
+    echo "Month: ${{ steps.create-date-version.outputs.month }}"
+    echo "Day: ${{ steps.create-date-version.outputs.day }}"
+
+    # Use in Docker tag
+    docker build -t myapp:${{ steps.create-date-version.outputs.version }} .
 ```
 
-### Complete workflow example
+#### Extract Version (`version extract`)
+
+Extract versions from files:
 
 ```yaml
-name: DevOps Workflow
+# Extract from package.json
+- name: Extract version from package.json
+  uses: flexydox/fxdx-devops-agent@v1
+  with:
+    command: version
+    subcommand: extract
+    args: |
+      {
+        "versionFile": "package.json",
+        "versionAttribute": "version"
+      }
+
+# Extract from nested YAML (Helm chart)
+- name: Extract version from Helm chart
+  uses: flexydox/fxdx-devops-agent@v1
+  with:
+    command: version
+    subcommand: extract
+    args: |
+      {
+        "versionFile": "Chart.yaml",
+        "versionAttribute": "appVersion"
+      }
+
+# Extract from custom JSON structure
+- name: Extract API version
+  uses: flexydox/fxdx-devops-agent@v1
+  with:
+    command: version
+    subcommand: extract
+    args: |
+      {
+        "versionFile": "api-config.json",
+        "versionAttribute": "api.v1.version"
+      }
+
+- name: Echo extracted versions
+  run: |
+    echo "Package Version: ${{ steps.extract-version.outputs.rawVersion }}"
+    echo "Helm App Version: ${{ steps.extract-helm-version.outputs.rawVersion }}"
+    echo "API Version: ${{ steps.extract-api-version.outputs.rawVersion }}"
+```
+
+#### Update Version (`version update`)
+
+Update versions in files:
+
+```yaml
+# Update package.json version
+- name: Update version in package.json
+  uses: flexydox/fxdx-devops-agent@v1
+  with:
+    command: version
+    subcommand: update
+    args: |
+      {
+        "version": "1.2.4",
+        "versionFile": "package.json",
+        "versionAttribute": "version"
+      }
+
+# Update Docker image version in values.yaml
+- name: Update Docker image version
+  uses: flexydox/fxdx-devops-agent@v1
+  with:
+    command: version
+    subcommand: update
+    args: |
+      {
+        "version": "${{ steps.extract-version.outputs.rawVersion }}",
+        "versionFile": "helm/values.yaml",
+        "versionAttribute": "image.tag"
+      }
+
+# Update multiple version files
+- name: Update API version
+  uses: flexydox/fxdx-devops-agent@v1
+  with:
+    command: version
+    subcommand: update
+    args: |
+      {
+        "version": "2.1.0",
+        "versionFile": "swagger.yaml",
+        "versionAttribute": "info.version"
+      }
+```
+
+## Text Command Examples
+
+#### Get Issues (`text get-issues`)
+
+Extract issue references from text:
+
+```yaml
+# Extract issues from commit message
+- name: Extract issues from commit message
+  id: extract-issues
+  uses: flexydox/fxdx-devops-agent@v1
+  with:
+    command: text
+    subcommand: get-issues
+    args: |
+      {
+        "text": "Fixed PROJ-123 and resolved PROJ-456 issues",
+        "issuePattern": "[A-Z]+-\\d+",
+        "failWhenNoIssues": false
+      }
+
+# Extract issues from PR title
+- name: Extract issues from PR title
+  id: extract-pr-issues
+  uses: flexydox/fxdx-devops-agent@v1
+  with:
+    command: text
+    subcommand: get-issues
+    args: |
+      {
+        "text": "${{ github.event.pull_request.title }}",
+        "issuePattern": "\\b(TASK|BUG|FEATURE)-\\d+\\b",
+        "failWhenNoIssues": true
+      }
+
+# Extract issues from release notes
+- name: Extract issues from release notes
+  id: extract-release-issues
+  uses: flexydox/fxdx-devops-agent@v1
+  with:
+    command: text
+    subcommand: get-issues
+    args: |
+      {
+        "text": "${{ github.event.release.body }}",
+        "issuePattern": "(?:fixes?|closes?|resolves?)\\s+#?(\\w+-\\d+)",
+        "failWhenNoIssues": false
+      }
+
+- name: Echo extracted issues
+  run: |
+    echo "Commit Issues: ${{ steps.extract-issues.outputs.issues }}"
+    echo "PR Issues: ${{ steps.extract-pr-issues.outputs.issues }}"
+    echo "Release Issues: ${{ steps.extract-release-issues.outputs.issues }}"
+```
+
+### Slack Command Examples
+
+#### E2E Notification (`slack e2e-notification`)
+
+Send comprehensive E2E test notifications:
+
+```yaml
+# Basic E2E notification (success)
+- name: Send E2E success notification
+  uses: flexydox/fxdx-devops-agent@v1
+  env:
+    SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+  with:
+    command: slack
+    subcommand: e2e-notification
+    args: |
+      {
+        "testName": "E2E Integration Tests",
+        "testResult": "pass",
+        "totalTests": 25,
+        "botToken": "${{ secrets.SLACK_BOT_TOKEN }}",
+        "channel": "qa-notifications"
+      }
+
+# Comprehensive E2E notification with all metadata
+- name: Send comprehensive E2E notification
+  uses: flexydox/fxdx-devops-agent@v1
+  env:
+    SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+  with:
+    command: slack
+    subcommand: e2e-notification
+    args: |
+      {
+        "testName": "Full E2E Test Suite",
+        "testResult": "fail",
+        "totalTests": 50,
+        "botToken": "${{ secrets.SLACK_BOT_TOKEN }}",
+        "channel": "qa-notifications",
+        "alertChannel": "qa-alerts",
+        "testResultUrl": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+        "dockerImage": "myapp:${{ github.sha }}",
+        "testFramework": "Playwright",
+        "branch": "${{ github.ref_name }}",
+        "commitMessage": "${{ github.event.head_commit.message }}",
+        "author": "${{ github.actor }}",
+        "repository": "${{ github.repository }}",
+        "version": "${{ steps.extract-version.outputs.rawVersion }}",
+        "buildUrl": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+        "buildNumber": "${{ github.run_number }}",
+        "sourceUrl": "https://github.com/${{ github.repository }}/commit/${{ github.sha }}"
+      }
+
+# Environment-specific E2E notifications
+- name: Send staging E2E notification
+  if: github.ref == 'refs/heads/staging'
+  uses: flexydox/fxdx-devops-agent@v1
+  env:
+    SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+  with:
+    command: slack
+    subcommand: e2e-notification
+    args: |
+      {
+        "testName": "Staging E2E Tests",
+        "testResult": "${{ steps.e2e-tests.outcome }}",
+        "totalTests": 30,
+        "botToken": "${{ secrets.SLACK_BOT_TOKEN }}",
+        "channel": "staging-qa",
+        "alertChannel": "staging-alerts",
+        "testFramework": "Cypress",
+        "branch": "staging",
+        "repository": "${{ github.repository }}"
+      }
+```
+
+### Complete Workflow Example
+
+Here's a comprehensive workflow that demonstrates multiple commands working together:
+
+```yaml
+name: DevOps Workflow with Issue Management
 on:
   pull_request:
     types: [opened, synchronize]
   push:
-    branches: [main]
+    branches: [main, develop]
+  release:
+    types: [published]
 
 jobs:
   validate-and-process:
@@ -436,28 +1230,53 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Extract issues from PR
+      # Step 1: Extract issues from PR or commit
       - name: Get PR data
         id: pr-data
+        if: github.event_name == 'pull_request'
         uses: flexydox/fxdx-devops-agent@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           command: github
           subcommand: get-diff-data
-          args: '{ "prNumber": "${{ github.event.pull_request.number }}", "issuePattern": "[A-Z]+-\\d+" }'
+          args: |
+            {
+              "prNumber": "${{ github.event.pull_request.number }}",
+              "issuePattern": "[A-Z]+-\\d+",
+              "dataSeparator": "\\n"
+            }
 
-      # Alternative: Extract issues from commit message or PR title
+      # Step 2: Extract issues from commit message (for direct pushes)
       - name: Extract issues from commit message
         id: commit-issues
+        if: github.event_name == 'push'
         uses: flexydox/fxdx-devops-agent@v1
         with:
           command: text
           subcommand: get-issues
-          args: '{ "text": "${{ github.event.head_commit.message }}", "issuePattern": "[A-Z]+-\\d+", "failWhenNoIssues": false }'
+          args: |
+            {
+              "text": "${{ github.event.head_commit.message }}",
+              "issuePattern": "[A-Z]+-\\d+",
+              "failWhenNoIssues": false
+            }
 
-      # Validate PR with Jira issues
-      - name: Validate PR
+      # Step 3: Get current version for tagging
+      - name: Extract current version
+        id: current-version
+        uses: flexydox/fxdx-devops-agent@v1
+        with:
+          command: version
+          subcommand: extract
+          args: |
+            {
+              "versionFile": "package.json",
+              "versionAttribute": "version"
+            }
+
+      # Step 4: Validate PR with Jira issues (PR only)
+      - name: Validate PR with Jira
         if: github.event_name == 'pull_request'
         uses: flexydox/fxdx-devops-agent@v1
         env:
@@ -469,10 +1288,15 @@ jobs:
         with:
           command: github
           subcommand: pr-commenter
-          args: '{ "issues": "${{ steps.pr-data.outputs.issues }}", "prNumber": "${{ github.event.pull_request.number }}", "failWhenNoIssues": true }'
+          args: |
+            {
+              "issues": "${{ steps.pr-data.outputs.issues }}",
+              "prNumber": "${{ github.event.pull_request.number }}",
+              "failWhenNoIssues": true
+            }
 
-      # On merge to main, update Jira issues
-      - name: Update issue status
+      # Step 5: Update Jira issues when merging to main
+      - name: Update Jira status to Done
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: flexydox/fxdx-devops-agent@v1
         env:
@@ -482,40 +1306,192 @@ jobs:
         with:
           command: jira
           subcommand: update-status
-          args: '{ "issues": "${{ steps.pr-data.outputs.issues }}", "targetStatus": "Done", "comment": "Merged to main branch" }'
+          args: |
+            {
+              "issues": "${{ steps.commit-issues.outputs.issues }}",
+              "targetStatus": "Done",
+              "comment": "Merged to main branch - Version ${{ steps.current-version.outputs.rawVersion }}"
+            }
+
+      # Step 6: Add production labels when pushing to main
+      - name: Add production labels
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: flexydox/fxdx-devops-agent@v1
+        env:
+          ATLASSIAN_API_BASE_URL: ${{ secrets.ATLASSIAN_API_BASE_URL }}
+          ATLASSIAN_API_USERNAME: ${{ secrets.ATLASSIAN_API_USERNAME }}
+          ATLASSIAN_API_TOKEN: ${{ secrets.ATLASSIAN_API_TOKEN }}
+        with:
+          command: jira
+          subcommand: update-labels
+          args: |
+            {
+              "issues": "${{ steps.commit-issues.outputs.issues }}",
+              "labelsToAdd": "production,deployed",
+              "labelsToRemove": "staging,in-progress"
+            }
+
+      # Step 7: Assign issues to release version
+      - name: Assign to release version
+        if: github.event_name == 'release'
+        uses: flexydox/fxdx-devops-agent@v1
+        env:
+          ATLASSIAN_API_BASE_URL: ${{ secrets.ATLASSIAN_API_BASE_URL }}
+          ATLASSIAN_API_USERNAME: ${{ secrets.ATLASSIAN_API_USERNAME }}
+          ATLASSIAN_API_TOKEN: ${{ secrets.ATLASSIAN_API_TOKEN }}
+        with:
+          command: jira
+          subcommand: assign-to-release
+          args: |
+            {
+              "issues": "${{ steps.extract-release-issues.outputs.issues }}",
+              "version": "${{ github.event.release.tag_name }}"
+            }
+
+      # Step 8: Create date-based version for development builds
+      - name: Create development version
+        id: dev-version
+        if: github.ref == 'refs/heads/develop'
+        uses: flexydox/fxdx-devops-agent@v1
+        with:
+          command: version
+          subcommand: create-date-version
+          args: |
+            {}
+
+      # Step 9: Update version in package.json for development
+      - name: Update development version
+        if: github.ref == 'refs/heads/develop'
+        uses: flexydox/fxdx-devops-agent@v1
+        with:
+          command: version
+          subcommand: update
+          args: |
+            {
+              "version": "${{ steps.dev-version.outputs.version }}",
+              "versionFile": "package.json",
+              "versionAttribute": "version"
+            }
+
+      # Step 10: Extract issues from release notes
+      - name: Extract release issues
+        id: extract-release-issues
+        if: github.event_name == 'release'
+        uses: flexydox/fxdx-devops-agent@v1
+        with:
+          command: text
+          subcommand: get-issues
+          args: |
+            {
+              "text": "${{ github.event.release.body }}",
+              "issuePattern": "[A-Z]+-\\d+",
+              "failWhenNoIssues": false
+            }
+
+  e2e-tests:
+    runs-on: ubuntu-latest
+    needs: validate-and-process
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Run your E2E tests here
+      - name: Run E2E Tests
+        id: e2e-tests
+        run: |
+          # Your E2E test commands
+          echo "Running E2E tests..."
+          # Set test result for demo
+          echo "outcome=success" >> $GITHUB_OUTPUT
+
+      # Step 11: Send Slack notification for E2E results
+      - name: Send E2E notification to Slack
+        if: always()
+        uses: flexydox/fxdx-devops-agent@v1
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+        with:
+          command: slack
+          subcommand: e2e-notification
+          args: |
+            {
+              "testName": "Full E2E Test Suite",
+              "testResult": "${{ steps.e2e-tests.outcome }}",
+              "totalTests": 50,
+              "botToken": "${{ secrets.SLACK_BOT_TOKEN }}",
+              "channel": "qa-notifications",
+              "alertChannel": "qa-alerts",
+              "testResultUrl": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+              "dockerImage": "myapp:${{ github.sha }}",
+              "testFramework": "Playwright",
+              "branch": "${{ github.ref_name }}",
+              "commitMessage": "${{ github.event.head_commit.message }}",
+              "author": "${{ github.actor }}",
+              "repository": "${{ github.repository }}",
+              "buildUrl": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+              "buildNumber": "${{ github.run_number }}",
+              "sourceUrl": "https://github.com/${{ github.repository }}/commit/${{ github.sha }}"
+            }
 ```
 
-### Send Slack notification for E2E test results
+### Error Handling Examples
+
+Handle common error scenarios:
 
 ```yaml
-- name: Send E2E test notification to Slack
+# Handle missing issues gracefully
+- name: Extract issues with error handling
+  id: extract-issues-safe
+  uses: flexydox/fxdx-devops-agent@v1
+  continue-on-error: true
+  with:
+    command: text
+    subcommand: get-issues
+    args: |
+      {
+        "text": "${{ github.event.pull_request.title }}",
+        "issuePattern": "[A-Z]+-\\d+",
+        "failWhenNoIssues": false
+      }
+
+# Conditional Jira operations based on issue existence
+- name: Update Jira only if issues found
+  if: steps.extract-issues-safe.outputs.issues != ''
+  uses: flexydox/fxdx-devops-agent@v1
+  env:
+    ATLASSIAN_API_BASE_URL: ${{ secrets.ATLASSIAN_API_BASE_URL }}
+    ATLASSIAN_API_USERNAME: ${{ secrets.ATLASSIAN_API_USERNAME }}
+    ATLASSIAN_API_TOKEN: ${{ secrets.ATLASSIAN_API_TOKEN }}
+  with:
+    command: jira
+    subcommand: add-comment
+    args: |
+      {
+        "issues": "${{ steps.extract-issues-safe.outputs.issues }}",
+        "comment": "PR validation completed successfully"
+      }
+
+# Fallback Slack notification on test failure
+- name: Send failure notification
+  if: failure()
   uses: flexydox/fxdx-devops-agent@v1
   env:
     SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
   with:
     command: slack
     subcommand: e2e-notification
-    args: '{
-      "testName": "E2E Integration Tests",
-      "testResult": "pass",
-      "totalTests": 25,
-      "botToken": "${{ secrets.SLACK_BOT_TOKEN }}",
-      "channel": "qa-notifications",
-      "alertChannel": "qa-alerts",
-      "testResultUrl": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}",
-      "dockerImage": "my-app:${{ github.sha }}",
-      "testFramework": "Playwright",
-      "branch": "${{ github.ref_name }}",
-      "commitMessage": "${{ github.event.head_commit.message }}",
-      "author": "${{ github.actor }}",
-      "repository": "${{ github.repository }}",
-      "version": "${{ github.ref_name }}",
-      "buildUrl": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}",
-      "buildNumber": "${{ github.run_number }}",
-      "sourceUrl": "https://github.com/${{ github.repository }}/commit/${{ github.sha }}",
-      "slackChannel": "qa-notifications",
-      "slackAlertChannel": "qa-alerts"
-    }'
+    args: |
+      {
+        "testName": "Workflow Failure",
+        "testResult": "fail",
+        "totalTests": 0,
+        "botToken": "${{ secrets.SLACK_BOT_TOKEN }}",
+        "channel": "dev-alerts",
+        "branch": "${{ github.ref_name }}",
+        "author": "${{ github.actor }}",
+        "repository": "${{ github.repository }}"
+      }
 ```
 
 **Slack App Authentication:**

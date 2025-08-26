@@ -15,25 +15,21 @@ Add a comprehensive documentation comment above the selected code that includes:
 
 Update the project README.md file to include:
 
-#### Commands Section
+#### Overview
 
-- List all available commands with brief descriptions
-- Include command syntax and usage patterns
-- Organize commands by category if applicable
+- List all available commands with subcommands
 
-#### Subcommands Section
+#### Each Command with Subcommands
 
 - Document all subcommands for each main command
 - Include hierarchical structure (command -> subcommand)
 - Provide description of what each subcommand does
+- add usage examples for each subcommand
+- do not use table for formatting
 
 #### Arguments Section
 
-- List all command-line arguments and flags
-- Include both short (-h) and long (--help) form options
-- Specify required vs optional arguments
-- Document argument types (string, integer, boolean, etc.)
-- Include default values where applicable
+- List all argument on separate lines
 
 #### Examples Section
 
@@ -44,3 +40,14 @@ Update the project README.md file to include:
 - Include examples for all major command combinations
 
 #### Format Structure
+
+- Format json args:
+
+```
+  args: |
+  {
+    "key": "value"
+  }
+```
+
+- each arg on separate line
