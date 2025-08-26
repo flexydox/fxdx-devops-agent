@@ -27373,7 +27373,10 @@ function transliterateText(input) {
     return w(input);
 }
 function normalizeString(input) {
-    return input.toLowerCase();
+    if (!input) {
+        return '';
+    }
+    return input.trim().toLowerCase();
 }
 function inferIssues(text, issuePattern) {
     if (!text) {
@@ -41250,31 +41253,38 @@ class JiraUpdateStatus extends BaseJiraCommand {
     async execute(args) {
         const issues = parseIssues(args.issues);
         const targetStatus = args.targetStatus;
+        const ignoredStatuses = args.ignoredStatuses?.split(',').map((s) => transliterateText(normalizeString(s))) || [];
         if (issues.length === 0) {
-            coreExports.info('No issues provided, skipping status update.');
+            coreExports.info('No issues provided, skipping the status update.');
             return;
         }
         if (!targetStatus) {
-            coreExports.info('No target status provided, skipping status update.');
+            coreExports.info('No target status provided, skipping the status update.');
             return;
         }
+        coreExports.info(`Ignored statuses: ${ignoredStatuses.join(',')}`);
         await this.eachIssue(issues, {
             applyToParent: args.applyToParent ?? false,
             applyToSubtasks: args.applyToSubtasks ?? true,
             callback: async (issueKey, issue) => {
                 const currentStatus = issue.fields.status;
                 const currentStatusName = currentStatus?.name ?? 'Unknown';
+                const currentStatusSanitized = transliterateText(normalizeString(currentStatusName));
                 const currentStatusCategory = currentStatus?.statusCategory?.key || 'unknown';
-                coreExports.info(`Current status of issue ${issueKey} is ${currentStatusName} [${currentStatusCategory}]`);
+                coreExports.info(`Current status of issue ${issueKey} is ${currentStatusName} [${currentStatusCategory}]. Sanitized name: [${currentStatusSanitized}]`);
+                if (ignoredStatuses.includes(currentStatusSanitized)) {
+                    coreExports.info(`Issue ${issueKey} is in an ignored status '${currentStatusName}' [${currentStatusSanitized}], skipping the status update.`);
+                    return;
+                }
                 if (currentStatusCategory === 'done') {
-                    coreExports.info(`Issue ${issueKey} is already in a done status, skipping.`);
+                    coreExports.info(`Issue ${issueKey} is already in a done status, skipping the status update.`);
                     return;
                 }
                 const normalize = compose(transliterateText, normalizeString);
                 const normalizedTargetStatus = normalize(targetStatus);
                 const normalizedCurrentStatus = normalize(currentStatusName);
                 if (normalizedCurrentStatus === normalizedTargetStatus) {
-                    coreExports.info(`Issue ${issueKey} is already in the target status '${targetStatus}', skipping.`);
+                    coreExports.info(`Issue ${issueKey} is already in the target status '${targetStatus}', skipping the status update.`);
                     return;
                 }
                 await updateJiraStatus(issueKey, targetStatus);
