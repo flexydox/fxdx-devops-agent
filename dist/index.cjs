@@ -70327,11 +70327,7 @@ class SlackAlert extends BaseCommand {
         coreExports.debug(`Sending Slack alert: ${args.title}`);
         coreExports.debug(`Alert message: ${args.message}`);
         try {
-            const body = `
-      *${args.title}*
-
-      ${args.message}
-      `;
+            const body = `${args.title}\n${args.message}`;
             await this.sendSlackMessage(botToken, body, args.channel);
             coreExports.info(`Successfully sent Slack alert to channel: ${args.channel}`);
         }

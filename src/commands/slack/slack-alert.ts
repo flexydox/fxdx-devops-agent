@@ -40,11 +40,7 @@ export class SlackAlert extends BaseCommand<SlackAlertArgs> {
     core.debug(`Alert message: ${args.message}`);
 
     try {
-      const body = `
-      *${args.title}*
-
-      ${args.message}
-      `;
+      const body = `${args.title}\n${args.message}`;
 
       await this.sendSlackMessage(botToken, body, args.channel);
 
