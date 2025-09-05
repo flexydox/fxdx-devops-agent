@@ -24,6 +24,11 @@ async function createComment(prNumber: string, body: string): Promise<void> {
   await client.createPullRequestComment(parseInt(prNumber, 10), body);
 }
 
+async function deleteComment(commentId: number): Promise<void> {
+  const client = getGitHubClient();
+  await client.deleteComment(commentId);
+}
+
 async function updateComment(commentId: number, body: string): Promise<void> {
   const client = getGitHubClient();
   await client.updateComment(commentId, body);
@@ -96,11 +101,17 @@ async function syncCommentForPR(prNumber: string, issueResult: IssueValidationRe
   const marker = getCommentMarker(issueResult.issue.key);
 
   const existingComment = comments.find((comment) => comment?.body?.includes(marker));
-
+  const isOK = issueResult.status === 'ok';
   if (existingComment) {
+    if (isOK) {
+      await deleteComment(existingComment.id);
+      return;
+    }
     await updateComment(existingComment.id, commentBody);
   } else {
-    await createComment(prNumber, commentBody);
+    if (!isOK) {
+      await createComment(prNumber, commentBody);
+    }
   }
 }
 export async function syncCommentsForPR(prNumber: string, issuesResults: IssueValidationResult[]): Promise<void> {

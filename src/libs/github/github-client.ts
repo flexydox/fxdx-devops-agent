@@ -195,6 +195,25 @@ export class GitHubClient {
   }
 
   /**
+   * Delete an existing comment
+   */
+  public async deleteComment(commentId: number) {
+    core.debug(`Deleting comment ${commentId}`);
+
+    const response = await this.octokit.rest.issues.deleteComment({
+      owner: this._owner,
+      repo: this._repo,
+      comment_id: commentId
+    });
+
+    if (response.status > 299) {
+      throw new Error(`Failed to delete comment ${commentId}. Status: ${response.status}`);
+    }
+
+    return response.data;
+  }
+
+  /**
    * Parse repository string (owner/repo) and return components
    */
   public static parseRepo(repoString: string): { owner: string; repo: string } {
