@@ -81,17 +81,35 @@ export class GitHubClient {
   public async getPullRequestCommits(prNumber: number) {
     core.debug(`Fetching commits for PR #${prNumber}`);
 
-    const response = await this.octokit.rest.pulls.listCommits({
-      owner: this._owner,
-      repo: this._repo,
-      pull_number: prNumber
-    });
+    const commits = [];
+    let page = 1;
+    const per_page = 100; // Maximum allowed by GitHub API
 
-    if (response.status !== 200) {
-      throw new Error(`Failed to fetch commits for PR #${prNumber}. Status: ${response.status}`);
+    while (true) {
+      const response = await this.octokit.rest.pulls.listCommits({
+        owner: this._owner,
+        repo: this._repo,
+        pull_number: prNumber,
+        page,
+        per_page
+      });
+
+      if (response.status !== 200) {
+        throw new Error(`Failed to fetch commits for PR #${prNumber}. Status: ${response.status}`);
+      }
+
+      commits.push(...response.data);
+
+      // If we got fewer results than requested, we've reached the end
+      if (response.data.length < per_page) {
+        break;
+      }
+
+      page++;
     }
 
-    return response.data;
+    core.debug(`Fetched ${commits.length} commits for PR #${prNumber}`);
+    return commits;
   }
 
   /**
