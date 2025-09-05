@@ -40562,9 +40562,11 @@ Zkontroluj, zda je issue alespoň minimálně popsáno. Pokud je issue v pořád
 Pokud je issue zcela nejasné, vrať "error" a doporučení k úpravě a návrh úpravy. 
 Pokud summary nebo description prázdné, vrať "error" a doporučení k úpravě a návrh úpravy.
 
+Pokud je issue částečně popsáno, vrať raději "ok", kontrola nemusí být příliš striktní.
+
 Význam výstupních polí:
-- recommendations: Slovní popis úpravy
-- suggestions: Konkrétní úprava na základě existujících data a doporučení
+- recommendations: Podrobný popis doporučení na základě pravidel a existujících dat. 
+- suggestions: Konkrétní úprava na základě existujících data a doporučení. Vygenerrovaný text musí být validní a projít syntaktickou kontrolou.
 
 Vrať odpověď v JSON formátu:
 {
