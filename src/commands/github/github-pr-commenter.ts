@@ -63,9 +63,14 @@ export class GithubPRCommenter extends BaseCommand<GithubPRCommenterArgs> {
       return;
     }
 
+    const loadParent = args.applyToParent ?? true;
+    const skipSubtasks = !(args.applyToSubtasks ?? true);
+    core.info(`Loading parent issues: ${loadParent}`);
+    core.info(`Loading subtasks: ${!skipSubtasks}`);
+
     const jiraIssues = await getIssues(issuesNumbers, {
-      loadParent: args.applyToParent,
-      skipSubtasks: !args.applyToSubtasks,
+      loadParent: loadParent,
+      skipSubtasks: skipSubtasks,
       searchParams: {
         fields: 'summary,description,issuetype,status,labels,components,parent'
       }
