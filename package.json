@@ -1,7 +1,7 @@
 {
   "name": "@flexydox/fxdx-devops-agent",
   "description": "Various GitHub Actions for DevOps workflows.",
-  "version": "1.0.28",
+  "version": "1.0.29",
   "author": "",
   "type": "module",
   "private": true,
