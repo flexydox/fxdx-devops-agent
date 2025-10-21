@@ -41051,15 +41051,22 @@ async function validateIssues(issues) {
     if (issues.length === 0) {
         return [];
     }
+    console.log(`Validating ${issues.length} issues...`);
     const results = await Promise.all(issues.map(async (issue) => {
         const { type, summary, description } = issue;
-        const result = await validateIssue(type, summary, description);
-        return {
-            ...result,
-            issue: issue
-        };
+        try {
+            const result = await validateIssue(type, summary, description);
+            return {
+                ...result,
+                issue: issue
+            };
+        }
+        catch (error) {
+            coreExports.error(`Error validating issue ${issue.key}: ${error}`);
+            return null;
+        }
     }));
-    return results;
+    return results.filter((res) => res !== null);
 }
 
 function getCommentMarker(issueKey) {
