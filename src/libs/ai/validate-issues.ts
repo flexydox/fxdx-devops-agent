@@ -1,6 +1,7 @@
 import { OpenAI } from 'openai';
 import { IssueInfo } from '../../types/issue-info.js';
 import { IssueValidationResult } from '../../types/issue-validation-result.js';
+import * as core from '@actions/core';
 
 export type IssueType = 'bug' | 'story' | 'task' | 'subtask' | 'epic' | string;
 
@@ -70,15 +71,21 @@ export async function validateIssues(issues: IssueInfo[]): Promise<IssueValidati
   if (issues.length === 0) {
     return [];
   }
+  console.log(`Validating ${issues.length} issues...`);
   const results = await Promise.all(
     issues.map(async (issue) => {
       const { type, summary, description } = issue;
-      const result = await validateIssue(type, summary, description);
-      return {
-        ...result,
-        issue: issue
-      } as IssueValidationResult;
+      try {
+        const result = await validateIssue(type, summary, description);
+        return {
+          ...result,
+          issue: issue
+        } as IssueValidationResult;
+      } catch (error) {
+        core.error(`Error validating issue ${issue.key}: ${error}`);
+        return null;
+      }
     })
   );
-  return results;
+  return results.filter((res): res is IssueValidationResult => res !== null);
 }
