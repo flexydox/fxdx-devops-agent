@@ -40999,7 +40999,7 @@ Jsi nástroj na ověřování kvality Jira issue.
 Zkontroluj zadání podle kritérií kvality.
 
 Pravidla hodnocení podle typů issue:
-- Bug: summary popisuje problém; description obsahuje kroky k reprodukci, očekávané vs. skutečné chování, prostředí.
+- Bug: summary popisuje problém; description je vyplněné.
 - Story: summary definuje hodnotu pro uživatele nebo účel; description poskytuje detailní kontext a akceptační kritéria.
 - Task: summary je stručné a jasné; description obsahuje detaily a cíle úkolu.
 - Subtask: summary je stručné a jasné; description obsahuje detaily úkolu.
